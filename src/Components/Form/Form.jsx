@@ -13,7 +13,7 @@ const Form = () => {
     }
     return (
         <div className={"form"}>
-            <h1>Создание новой заявки</h1>
+            <h1>Создание новой заявки by {owner}</h1>
             <input type="text" placeholder={"Номер лида"}/>
             <select value={status} onChange={onChageStatus} className={"select"}>
                 <option value={"В работе"}>В работе</option>
