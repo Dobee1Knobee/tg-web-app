@@ -37,7 +37,6 @@ const Form = () => {
                     <option value={"60"}>60</option>
                     <option value={"70"}>70</option>
                     <option value={"80"}>80</option>
-
                 </select>
                 <h2>Количество</h2>
                 <input type={"number"}></input>
