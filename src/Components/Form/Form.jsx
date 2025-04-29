@@ -28,6 +28,20 @@ const Form = () => {
                 <option value={"Прозвонить завтра"}>Прозвонить завтра</option>
                 <option value={"Статус заказа"}>Статус заказа</option>
             </select>
+            <div style={{display: "flex", flexDirection:"row"}}>
+                <h2>Какая диагональ телевизора</h2>
+                <select>
+                    <option value={"30"}>30</option>
+                    <option value={"40"}>40</option>
+                    <option value={"50"}>50</option>
+                    <option value={"60"}>60</option>
+                    <option value={"70"}>70</option>
+                    <option value={"80"}>80</option>
+
+                </select>
+                <h2>Количество</h2>
+                <input type={"number"}></input>
+            </div>
         </div>
     );
 };
