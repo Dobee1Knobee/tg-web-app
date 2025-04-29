@@ -8,7 +8,7 @@ const Header = () => {
 
     return (
         <div className={'header'}>
-            <img width={"100px"} src={logo} alt={"logo"} style={{marginTop:"2vh",textAlign:"center"}} />
+            <img width={"100px"} src={logo} alt={"logo"} style={{marginTop:"4vh",textAlign:"center"}} />
             <span className={"username"}>
                 {user?.username}
             </span>
