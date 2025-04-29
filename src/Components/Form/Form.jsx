@@ -28,7 +28,6 @@ const Form = () => {
                 <option value={"Прозвонить завтра"}>Прозвонить завтра</option>
                 <option value={"Статус заказа"}>Статус заказа</option>
             </select>
-            <div style={{display: "flex", flexDirection:"row"}}>
                 <h2>Какая диагональ телевизора</h2>
                 <select>
                     <option value={"30"}>30</option>
@@ -40,7 +39,6 @@ const Form = () => {
                 </select>
                 <h2>Количество</h2>
                 <input type={"number"}></input>
-            </div>
         </div>
     );
 };
