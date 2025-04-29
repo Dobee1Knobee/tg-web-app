@@ -12,7 +12,7 @@ const Form = () => {
         setStatus(e.target.value);
     }
     return (
-        <div className={"form"}>
+        <div className={"form"} >
             <h1>Создание новой заявки by {owner}</h1>
             <input type="text" placeholder={"Номер лида"}/>
             <select value={status} onChange={onChageStatus} className={"select"}>
