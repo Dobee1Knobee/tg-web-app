@@ -46,7 +46,7 @@ const Form = () => {
 
     return (
         <div className="container py-4">
-            <h2 className="mb-3">Создание новой заявки</h2>
+            <h2 className="mb-3  text-center mt-4">Создание новой заявки</h2>
 
             <div className="mb-3">
                 <input className="form-control" type="text" placeholder="Номер лида" />
