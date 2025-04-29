@@ -1,5 +1,4 @@
 import React from 'react';
-import {useTelegram} from "../../hooks/useTelegram";
 import "./Header.css"
 import logo from "../../logo/yellowpng.png"
 const Header = () => {
