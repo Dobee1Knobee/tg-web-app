@@ -1,79 +1,125 @@
 import React, { useState } from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
-import './Form.css';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Form = () => {
     const { user } = useTelegram();
     const owner = user?.username || "Неизвестный";
-
     const [status, setStatus] = useState("В работе");
+    const [tvs, setTvs] = useState([]);
+    const [currentTv, setCurrentTv] = useState({ diagonal: "40", workType: "Установка" });
+    const [isAdding, setIsAdding] = useState(false);
+    const [editIndex, setEditIndex] = useState(null);
 
-    const onChangeStatus = (e) => {
-        setStatus(e.target.value);
+    const handleStatusChange = (e) => setStatus(e.target.value);
+
+    const handleTvChange = (e) => {
+        setCurrentTv({ ...currentTv, [e.target.name]: e.target.value });
+    };
+
+    const startAdding = () => {
+        setCurrentTv({ diagonal: "40", workType: "Установка" });
+        setEditIndex(null);
+        setIsAdding(true);
+    };
+
+    const saveTv = () => {
+        if (editIndex !== null) {
+            setTvs(tvs.map((tv, i) => (i === editIndex ? currentTv : tv)));
+        } else {
+            setTvs([...tvs, currentTv]);
+        }
+        setIsAdding(false);
+        setCurrentTv({ diagonal: "40", workType: "Установка" });
+        setEditIndex(null);
+    };
+
+    const editTv = (index) => {
+        setCurrentTv(tvs[index]);
+        setEditIndex(index);
+        setIsAdding(true);
+    };
+
+    const removeTv = (index) => {
+        setTvs(tvs.filter((_, i) => i !== index));
     };
 
     return (
         <div className="container py-4">
-            <h2 className="mb-4 text-center mt-4">Создание новой заявки</h2>
+            <h2 className="mb-3">Создание новой заявки</h2>
 
             <div className="mb-3">
-                <input
-                    className="form-control"
-                    type="text"
-                    placeholder="Номер лида"
-                />
+                <input className="form-control" type="text" placeholder="Номер лида" />
             </div>
 
             <div className="mb-3">
-                <input
-                    className="form-control"
-                    placeholder={`Владелец заявки: ${owner}`}
-                    readOnly
-                />
+                <input className="form-control" placeholder={`Владелец заявки: ${owner}`} readOnly />
             </div>
 
-            <div className="mb-3 d-flex align-items-center gap-3">
-                <label className="form-label text-nowrap mb-0">Статус заявки</label>
-                <select
-                    value={status}
-                    onChange={onChangeStatus}
-                    className="form-select"
-                >
-                    <option value="В работе">В работе</option>
-                    <option value="Другой регион">Другой регион</option>
-                    <option value="Невалидный">Невалидный</option>
-                    <option value="Недозвон">Недозвон</option>
-                    <option value="Ночной">Ночной</option>
-                    <option value="Ночной ранний">Ночной ранний</option>
-                    <option value="Нужно подтверждение">Нужно подтверждение</option>
-                    <option value="Нужно согласование">Нужно согласование</option>
-                    <option value="Оформлен">Оформлен</option>
-                    <option value="Прозвонить завтра">Прозвонить завтра</option>
-                    <option value="Статус заказа">Статус заказа</option>
+            <div className="mb-3">
+                <label className="form-label">Статус заявки</label>
+                <select className="form-select" value={status} onChange={handleStatusChange}>
+                    <option>В работе</option>
+                    <option>Другой регион</option>
+                    <option>Невалидный</option>
+                    <option>Недозвон</option>
+                    <option>Ночной</option>
+                    <option>Ночной ранний</option>
+                    <option>Нужно подтверждение</option>
+                    <option>Нужно согласование</option>
+                    <option>Оформлен</option>
+                    <option>Прозвонить завтра</option>
+                    <option>Статус заказа</option>
                 </select>
             </div>
 
-            <button className="btn btn-primary">Добавить телевизор</button>
+            <button className="btn btn-primary" onClick={startAdding}>Добавить телевизор</button>
 
-            {/* Остальной код закомментирован, можешь вернуть если нужно */}
-            {/*
-            <div className="mt-3">
-                <h2>Какая диагональ телевизора</h2>
-                <select className="form-select">
-                    <option value="30">30</option>
-                    <option value="40">40</option>
-                    <option value="50">50</option>
-                    <option value="60">60</option>
-                    <option value="70">70</option>
-                    <option value="80">80</option>
-                </select>
-            </div>
+            {isAdding && (
+                <div className="card my-3 p-3">
+                    <div className="mb-3">
+                        <label className="form-label">Диагональ телевизора</label>
+                        <select className="form-select" name="diagonal" value={currentTv.diagonal} onChange={handleTvChange}>
+                            <option>30</option>
+                            <option>40</option>
+                            <option>50</option>
+                            <option>60</option>
+                            <option>70</option>
+                            <option>80</option>
+                        </select>
+                    </div>
 
-            <div className="mt-3">
-                <h2>Количество</h2>
-                <input type="number" className="form-control" />
-            </div>
-            */}
+                    <div className="mb-3">
+                        <label className="form-label">Вид работы</label>
+                        <select className="form-select" name="workType" value={currentTv.workType} onChange={handleTvChange}>
+                            <option>Установка</option>
+                            <option>Демонтаж</option>
+                            <option>Настройка</option>
+                        </select>
+                    </div>
+
+                    <button className="btn btn-success" onClick={saveTv}>
+                        {editIndex !== null ? "Сохранить изменения" : "Добавить"}
+                    </button>
+                </div>
+            )}
+
+            {tvs.length > 0 && (
+                <div className="mt-4">
+                    <h4>Добавленные телевизоры:</h4>
+                    <ul className="list-group">
+                        {tvs.map((tv, index) => (
+                            <li key={index} className="list-group-item d-flex justify-content-between align-items-center">
+                                <span>📺 Диагональ: <b>{tv.diagonal}"</b>, Вид работы: <b>{tv.workType}</b></span>
+                                <div className="btn-group">
+                                    <button className="btn btn-sm btn-outline-secondary" onClick={() => editTv(index)}>Редактировать</button>
+                                    <button className="btn btn-sm btn-outline-danger" onClick={() => removeTv(index)}>Удалить</button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </div>
     );
 };
