@@ -24,7 +24,6 @@ const workTypes = [
     { label: "PS/XBOX Installation", value: "xbox" },
     { label: "Furniture Assembly (hourly)", value: "hours" },
     { label: "Addons", value: "addons" },
-
 ];
 
 const Form = () => {
@@ -35,17 +34,28 @@ const Form = () => {
     const [leadName, setLeadName] = useState("");
     const [leadId, setLeadId] = useState("");
     const [services, setServices] = useState([]);
-    const [currentService, setCurrentService] = useState({ diagonal: "40", workType: workTypes[0].value,    message: "",
+    const [currentService, setCurrentService] = useState({
+        diagonal: "40",
+        workType: workTypes[0].value,
+        message: "",
+        price: "",
     });
     const [isAdding, setIsAdding] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
-    const [message, setMessage] = useState("");
+
     const handleStatusChange = (e) => setStatus(e.target.value);
+
     const handleServiceChange = (e) => {
         setCurrentService({ ...currentService, [e.target.name]: e.target.value });
     };
+
     const startAdding = () => {
-        setCurrentService({ diagonal: "40", workType: workTypes[0].value });
+        setCurrentService({
+            diagonal: "40",
+            workType: workTypes[0].value,
+            message: "",
+            price: "",
+        });
         setEditIndex(null);
         setIsAdding(true);
     };
@@ -57,7 +67,12 @@ const Form = () => {
             setServices([...services, currentService]);
         }
         setIsAdding(false);
-        setCurrentService({ diagonal: "40", workType: workTypes[0].value });
+        setCurrentService({
+            diagonal: "40",
+            workType: workTypes[0].value,
+            message: "",
+            price: "",
+        });
         setEditIndex(null);
     };
 
@@ -76,7 +91,13 @@ const Form = () => {
             <h2 className="mb-3 text-center mt-4">Создание новой заявки</h2>
 
             <div className="mb-3">
-                <input className="form-control" type="text" placeholder="Номер лида" value={leadId} onChange={(e) => setLeadId(e.target.value)} />
+                <input
+                    className="form-control"
+                    type="text"
+                    placeholder="Номер лида"
+                    value={leadId}
+                    onChange={(e) => setLeadId(e.target.value)}
+                />
             </div>
 
             <div className="mb-3">
@@ -101,16 +122,29 @@ const Form = () => {
             </div>
 
             <div className="mb-3">
-                <input className="form-control" type="text" placeholder="Имя заказчика" value={leadName} onChange={(e) => setLeadName(e.target.value)} />
+                <input
+                    className="form-control"
+                    type="text"
+                    placeholder="Имя заказчика"
+                    value={leadName}
+                    onChange={(e) => setLeadName(e.target.value)}
+                />
             </div>
 
-            <button className="btn btn-primary" onClick={startAdding}>Добавить услугу</button>
+            <button className="btn btn-primary" onClick={startAdding}>
+                Добавить услугу
+            </button>
 
             {isAdding && (
                 <div className="card my-3 p-3">
                     <div className="mb-3">
                         <label className="form-label">Диагональ телевизора</label>
-                        <select className="form-select" name="diagonal" value={currentService.diagonal} onChange={handleServiceChange}>
+                        <select
+                            className="form-select"
+                            name="diagonal"
+                            value={currentService.diagonal}
+                            onChange={handleServiceChange}
+                        >
                             {["30", "40", "50", "60", "70", "80"].map((d) => (
                                 <option key={d} value={d}>{d}</option>
                             ))}
@@ -118,18 +152,41 @@ const Form = () => {
                     </div>
 
                     <div className="mb-3 d-flex flex-row gap-3">
-                        <select className="form-select" name="workType" value={currentService.workType} onChange={handleServiceChange}>
+                        <select
+                            className="form-select"
+                            name="workType"
+                            value={currentService.workType}
+                            onChange={handleServiceChange}
+                        >
                             {workTypes.map((type) => (
-                                <option key={type.value} value={type.value}>{type.label}</option>
+                                <option key={type.value} value={type.value}>
+                                    {type.label}
+                                </option>
                             ))}
                         </select>
-                        <input type={"number"} placeholder={"Стоимость"} style={{width:"40%",textAlign:"center"}}/>
-                    </div>
-                    <div className={"mb-3"}>
-                        <input name={"message"} className={"form-control"} type={"text"} placeholder={"Дополнительная информация"}    value={currentService.message}
-                               onChange={handleServiceChange} />
+
+                        <input
+                            type="number"
+                            name="price"
+                            placeholder="Стоимость"
+                            min="0"
+                            className="form-control"
+                            style={{ width: "40%", textAlign: "center" }}
+                            value={currentService.price}
+                            onChange={handleServiceChange}
+                        />
                     </div>
 
+                    <div className="mb-3">
+                        <input
+                            name="message"
+                            className="form-control"
+                            type="text"
+                            placeholder="Дополнительная информация"
+                            value={currentService.message}
+                            onChange={handleServiceChange}
+                        />
+                    </div>
 
                     <button className="btn btn-success" onClick={saveService}>
                         {editIndex !== null ? "Сохранить изменения" : "Добавить"}
@@ -142,19 +199,46 @@ const Form = () => {
                     <h4>Добавленные услуги:</h4>
                     <ul className="list-group">
                         {services.map((s, i) => (
-                            <li key={i} className="list-group-item d-flex justify-content-between align-items-center">
-                            <span>
-                                📺 Диагональ: <b>{s.diagonal}"</b>,
-                                Работа: <b>{workTypes.find(t => t.value === s.workType)?.label}</b>
-                                {s.message && (<div>📝 Комментарий: {s.message}</div>)}
-                            </span>
+                            <li
+                                key={i}
+                                className="list-group-item d-flex justify-content-between align-items-center"
+                            >
+                                <span>
+                                    📺 Диагональ: <b>{s.diagonal}"</b>,
+                                    Работа: <b>{workTypes.find(t => t.value === s.workType)?.label}</b>
+                                    {s.price && <> 💵 <b>{s.price} $</b></>}
+                                    {s.message && <div>📝 Комментарий: {s.message}</div>}
+                                </span>
                                 <div className="btn-group">
-                                    <button className="btn btn-sm btn-outline-secondary" onClick={() => editService(i)}>Редактировать</button>
-                                    <button className="btn btn-sm btn-outline-danger" onClick={() => removeService(i)}>Удалить</button>
+                                    <button
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={() => editService(i)}
+                                    >
+                                        Редактировать
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-outline-danger"
+                                        onClick={() => removeService(i)}
+                                    >
+                                        Удалить
+                                    </button>
                                 </div>
                             </li>
                         ))}
                     </ul>
+
+                    {/* Общая сумма */}
+                    <div className="text-end mt-3">
+                        <h5>
+                            💰 Общая сумма:{" "}
+                            <b>
+                                {services
+                                    .map((s) => Number(s.price) || 0)
+                                    .reduce((a, b) => a + b, 0)
+                                    .toLocaleString()} $
+                            </b>
+                        </h5>
+                    </div>
                 </div>
             )}
         </div>
