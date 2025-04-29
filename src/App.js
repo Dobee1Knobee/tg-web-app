@@ -1,4 +1,3 @@
-import logo from './logo.svg';
 import './App.css';
 import {useEffect} from "react";
 const tg = window.Telegram.WebApp;
