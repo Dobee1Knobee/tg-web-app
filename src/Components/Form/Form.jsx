@@ -25,8 +25,14 @@ const workTypes = [
      { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
     { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
-
 ];
+
+const mount = [
+    {label:"Fixed TV mount",value:"fixed_mount",price:39},
+    {label:"Titling Mounting", value: "titling_mount",price:49},
+    {label:"Full Motion", value: "full_motion",price:69},
+]
+
 
 const statusColors = {
     "В работе": "#ffff00",
@@ -57,6 +63,8 @@ const Form = () => {
         workType: workTypes[0].value,
         message: "",
         price: "",
+        mountType: "",
+        mountPrice: 0,
     });
     const [isAdding, setIsAdding] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
@@ -74,7 +82,10 @@ const Form = () => {
             workType: workTypes[0].value,
             message: "",
             price: "",
+            mountType: "",
+            mountPrice: 0,
         });
+
         setEditIndex(null);
         setIsAdding(true);
     };
@@ -92,7 +103,10 @@ const Form = () => {
             workType: workTypes[0].value,
             message: "",
             price: "",
+            mountType: "",
+            mountPrice: 0,
         });
+
         setEditIndex(null);
     };
 
@@ -255,9 +269,31 @@ const Form = () => {
                             {currentService.price + "$"}
                         </div>
                     </div>
+
                     <div className="mb-3 d-flex flex-row gap-3 align-items-center justify-content-center">
                         <button className={"btn btn-primary"}>Дополнительные материалы</button>
                         <button className={"btn btn-warning"}>Дополнительные услуги</button>
+                        <select
+                            className="form-select"
+                            name="mountType"
+                            value={currentService.mountType}
+                            onChange={(e) => {
+                                const value = e.target.value;
+
+                                const selectedMount = mount.find(m => m.value === value);
+                                setCurrentService({
+                                    ...currentService,
+                                    mountType: value,
+                                    mountPrice: selectedMount?.price || 0,
+                                });
+
+                            }}
+                        >
+                            <option value="">Тип крепления</option>
+                            <option value="fixed">Fixed — $39</option>
+                            <option value="tilting">Tilting — $49</option>
+                            <option value="full_motion">Full motion — $69</option>
+                        </select>
 
                     </div>
                     <div className="mb-3">
@@ -290,8 +326,12 @@ const Form = () => {
                                     📺  Диагональ: <b>{s.diagonal}"</b> <br/>
                                     🔢  Количество: <b>{s.count}</b> <br/>
                                     🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label}</b><br/>
+                                    { s.mountType && (
+                                        <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b> — 💲{s.mountPrice}</div>
+                                    )}
                                     {s.price && <>💵 Стоимость  <b>{s.price} $</b></>}
                                     {s.message && <div>📝 Комментарий: {s.message}</div>}
+
                                 </span>
                                 <div className="btn-group">
                                     <button
@@ -317,7 +357,7 @@ const Form = () => {
                             💰 Общая сумма:{" "}
                             <b>
                                 {services
-                                    .map((s) => Number(s.price * s.count) || 0)
+                                    .map((s) => Number(s.price * s.count + s.mountPrice) || 0)
                                     .reduce((a, b) => a + b, 0)
                                     .toLocaleString()} $
                             </b>
