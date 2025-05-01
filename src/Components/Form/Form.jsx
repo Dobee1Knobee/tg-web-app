@@ -270,7 +270,7 @@ const Form = () => {
                         </div>
                     </div>
 
-                    <div className="mb-3 d-flex flex-row gap-3 align-items-center justify-content-center">
+                    <div className="d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center">
                         <button className={"btn btn-primary"}>Дополнительные материалы</button>
                         <button className={"btn btn-warning"}>Дополнительные услуги</button>
                         <select
