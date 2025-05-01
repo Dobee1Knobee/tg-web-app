@@ -162,6 +162,17 @@ const Form = () => {
 
             {isAdding && (
                 <div className="card my-3 p-3">
+                    <div className=" p-3 position-relative">
+                        <button
+                            type="button"
+                            className="btn-close position-absolute top-0 end-0 "
+                            aria-label="Close"
+                            onClick={() => setIsAdding(false)} // закрыть форму добавления
+                        ></button>
+
+                        {/* Здесь остальной контент карточки */}
+                    </div>
+
                     <div className="mb-3 d-flex flex-row gap-3">
 
                         <input
@@ -199,7 +210,7 @@ const Form = () => {
                             placeholder="Диагональ"
                         />
 
-                        <input className="form-control" name={"count"} type="number" readOnly={true} placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "40%", textAlign: "center" } }
+                        <input className="form-control" name={"count"} type="number" min={1} placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "30%", textAlign: "center" } }
                         />
                     </div>
                     {showTechChoice && (
@@ -240,21 +251,13 @@ const Form = () => {
                         </div>
 
 
-                        <input
-                            type="number"
-                            name="price"
-                            placeholder="Стоимость"
-                            min="0"
-                            className="form-control"
-                            style={{ width: "40%", textAlign: "center" }}
-                            value={currentService.price}
-                            readOnly={true}
-
-                        />
+                        <div className="form-control" style={{ backgroundColor: "#f8f9fa",width:"30%",textAlign: "center" }}>
+                            {currentService.price + "$"}
+                        </div>
                     </div>
                     <div className="mb-3 d-flex flex-row gap-3 align-items-center justify-content-center">
                         <button className={"btn btn-primary"}>Дополнительные материалы</button>
-                        <button className={"btn btn-danger"}>Дополнительные услуги</button>
+                        <button className={"btn btn-warning"}>Дополнительные услуги</button>
 
                     </div>
                     <div className="mb-3">
