@@ -3,8 +3,6 @@ import { useTelegram } from '../../hooks/useTelegram';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const workTypes = [
-    { label: "Compensation for Distance to Customers", value: "miles" },
-    { label: "Local TV Transport", value: "transport" },
     { label: "On stand / On existing Mounting", value: "tv_stand" },
     { label: "Standard Mounting", value: "tv_std" },
     { label: "Large TV Mounting", value: "tv_big" },
@@ -25,6 +23,20 @@ const workTypes = [
     { label: "Furniture Assembly (hourly)", value: "hours" },
     { label: "Addons", value: "addons" },
 ];
+const statusColors = {
+    "В работе": "#ffff00",
+    "Другой регион": "#00e5ff",
+    "Невалидный": "#f44336",
+    "Недозвон": "#9e9e9e",
+    "Ночной": "#1976d2",
+    "Ночной ранний": "#bfe1f6",
+    "Нужно подтверждение": "#76ff03",
+    "Нужно согласование": "#ffa726",
+    "Оформлен": "#2e7d32",
+    "Прозвонить завтра": "#e6cff1",
+    "Статус заказа": "#e0e0e0",
+};
+
 
 const Form = () => {
     const { user } = useTelegram();
@@ -35,7 +47,8 @@ const Form = () => {
     const [leadId, setLeadId] = useState("");
     const [services, setServices] = useState([]);
     const [currentService, setCurrentService] = useState({
-        diagonal: "40",
+        diagonal: "",
+        count: "",
         workType: workTypes[0].value,
         message: "",
         price: "",
@@ -51,7 +64,8 @@ const Form = () => {
 
     const startAdding = () => {
         setCurrentService({
-            diagonal: "40",
+            diagonal: "",
+            count: "",
             workType: workTypes[0].value,
             message: "",
             price: "",
@@ -68,7 +82,8 @@ const Form = () => {
         }
         setIsAdding(false);
         setCurrentService({
-            diagonal: "40",
+            diagonal: "",
+            count: "",
             workType: workTypes[0].value,
             message: "",
             price: "",
@@ -105,19 +120,24 @@ const Form = () => {
             </div>
 
             <div className="mb-3">
-                <select className="form-select" value={status} onChange={handleStatusChange}>
-                    <option value="" disabled hidden>Статус заявки</option>
-                    <option value="В работе">В работе</option>
-                    <option value="Другой регион">Другой регион</option>
-                    <option value="Невалидный">Невалидный</option>
-                    <option value="Недозвон">Недозвон</option>
-                    <option value="Ночной">Ночной</option>
-                    <option value="Ночной ранний">Ночной ранний</option>
-                    <option value="Нужно подтверждение">Нужно подтверждение</option>
-                    <option value="Нужно согласование">Нужно согласование</option>
-                    <option value="Оформлен">Оформлен</option>
-                    <option value="Прозвонить завтра">Прозвонить завтра</option>
-                    <option value="Статус заказа">Статус заказа</option>
+                <select
+                    className="form-select"
+                    value={status}
+                    onChange={handleStatusChange}
+                    style={{
+                        backgroundColor: statusColors[status] || "#fff",
+                        color: status === "" ? "#6c757d" : "#000",
+                        fontWeight: "bold"
+                    }}
+                >
+                    <option value="" disabled hidden>
+                        Статус заявки
+                    </option>
+                    {Object.keys(statusColors).map((statusKey) => (
+                        <option key={statusKey} value={statusKey}>
+                            {statusKey}
+                        </option>
+                    ))}
                 </select>
             </div>
 
@@ -137,18 +157,19 @@ const Form = () => {
 
             {isAdding && (
                 <div className="card my-3 p-3">
-                    <div className="mb-3">
-                        <label className="form-label">Диагональ телевизора</label>
-                        <select
-                            className="form-select"
+                    <div className="mb-3 d-flex flex-row gap-3">
+
+                        <input
+                            className="form-control"
                             name="diagonal"
                             value={currentService.diagonal}
-                            onChange={handleServiceChange}
-                        >
-                            {["30", "40", "50", "60", "70", "80"].map((d) => (
-                                <option key={d} value={d}>{d}</option>
-                            ))}
-                        </select>
+                            onChange={(e) => setCurrentService({ ...currentService, diagonal: e.target.value.replace(/\D/g, '') })}
+                            type="text"
+                            placeholder="Диагональ"
+
+                        />
+                        <input className="form-control" name={"count"} type="number" placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "40%", textAlign: "center" } }
+                        />
                     </div>
 
                     <div className="mb-3 d-flex flex-row gap-3">
@@ -174,6 +195,7 @@ const Form = () => {
                             style={{ width: "40%", textAlign: "center" }}
                             value={currentService.price}
                             onChange={handleServiceChange}
+
                         />
                     </div>
 
@@ -204,9 +226,10 @@ const Form = () => {
                                 className="list-group-item d-flex justify-content-between align-items-center"
                             >
                                 <span>
-                                    📺 Диагональ: <b>{s.diagonal}"</b>,
-                                    Работа: <b>{workTypes.find(t => t.value === s.workType)?.label}</b>
-                                    {s.price && <> 💵 <b>{s.price} $</b></>}
+                                    📺  Диагональ: <b>{s.diagonal}"</b> <br/>
+                                    🔢  Количество: <b>{s.count}</b> <br/>
+                                    🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label}</b><br/>
+                                    {s.price && <>💵 Стоимость  <b>{s.price} $</b></>}
                                     {s.message && <div>📝 Комментарий: {s.message}</div>}
                                 </span>
                                 <div className="btn-group">
@@ -233,7 +256,7 @@ const Form = () => {
                             💰 Общая сумма:{" "}
                             <b>
                                 {services
-                                    .map((s) => Number(s.price) || 0)
+                                    .map((s) => Number(s.price * s.count) || 0)
                                     .reduce((a, b) => a + b, 0)
                                     .toLocaleString()} $
                             </b>
