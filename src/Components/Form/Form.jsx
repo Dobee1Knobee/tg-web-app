@@ -2,26 +2,30 @@ import React, { useState } from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import 'bootstrap/dist/css/bootstrap.min.css';
 const workTypes = [
-    { label: "On stand / On existing Mounting", value: "tv_stand", price: 0 }, // не указано
-    { label: "Standard Mounting", value: "tv_std", price: 39 }, // Fixed
-    { label: "Large TV Mounting", value: "tv_big", price: 149 }, // 60”+ one handyman
-    { label: "Large TV Mounting 2 handyman", value: "tv_big2", price: 189 }, // 60”+ two handyman
-    { label: "Frame TV Mounting", value: "tv_frame", price: 0 },
-    { label: "Fireplace Installation", value: "firepalce", price: 49 }, // Above the fireplace
-    { label: "Mantel Mount TV Installation", value: "tv_mantle", price: 69 }, // Full motion (предположительно)
-    { label: "Mounting on Solid Surfaces or Ceiling", value: "solid", price: 49 }, // Stone wall
-    { label: "TV Unmounting", value: "unmt", price: 49 }, // Dismount
-    { label: "Cable Channel Installation", value: "ext", price: 49 }, // Cord concealment (external)
-    { label: "Wire Removal (behind wall)", value: "int", price: 99 }, // Cord concealment (internal)
-    { label: "Cable management", value: "cbl_mng", price: 0 },
-    { label: "Soundbar Installation", value: "sb", price: 69 }, // Soundbar
-    { label: "Outlet Installation", value: "outlet", price: 59 }, // Install outlet
-    { label: "Shelf Installation", value: "shelf", price: 49 }, // Install wall shelf
-    { label: "Painting and Picture Hanging", value: "painting", price: 0 }, // не указано
-    { label: "TV Backlight Installation", value: "backlight", price: 149 },
-    { label: "PS/XBOX Installation", value: "xbox", price: 69 },
-    { label: "Furniture Assembly (hourly)", value: "hours", price: 0 }, // зависит от часов
-    { label: "Addons", value: "addons", price: 0 }, // не указано
+    // { label: "On stand / On existing Mounting", value: "tv_stand", price: 0 }, // не указано
+    // { label: "Standard Mounting", value: "tv_std", price: 39 }, // Fixed
+    // { label: "Large TV Mounting", value: "tv_big", price: 149 }, // 60”+ one handyman
+    // { label: "Large TV Mounting 2 handyman", value: "tv_big2", price: 189 }, // 60”+ two handyman
+    // { label: "Frame TV Mounting", value: "tv_frame", price: 0 },
+    // { label: "Fireplace Installation", value: "firepalce", price: 49 }, // Above the fireplace
+    // { label: "Mantel Mount TV Installation", value: "tv_mantle", price: 0 }, // Кастомный маунт с пультом управления
+    // { label: "Mounting on Solid Surfaces or Ceiling", value: "solid", price: 49 }, // Stone wall
+    // { label: "TV Unmounting", value: "unmt", price: 49 }, // Dismount
+    // { label: "Cable Channel Installation", value: "ext", price: 49 }, // Cord concealment (external)
+    // { label: "Wire Removal (behind wall)", value: "int", price: 99 }, // Cord concealment (internal)
+    // { label: "Cable management", value: "cbl_mng", price: 0 },
+    // { label: "Soundbar Installation", value: "sb", price: 69 }, // Soundbar
+    // { label: "Outlet Installation", value: "outlet", price: 59 }, // Install outlet
+    // { label: "Shelf Installation", value: "shelf", price: 49 }, // Install wall shelf
+    // { label: "Painting and Picture Hanging", value: "painting", price: 0 }, // не указано
+    // { label: "TV Backlight Installation", value: "backlight", price: 149 },
+    // { label: "PS/XBOX Installation", value: "xbox", price: 69 },
+    // { label: "Furniture Assembly (hourly)", value: "hours", price: 0 }, // зависит от часов
+    // { label: "Addons", value: "addons", price: 0 }, // не указано
+     { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
+    { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
+    { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
+
 ];
 
 const statusColors = {
@@ -42,7 +46,7 @@ const statusColors = {
 const Form = () => {
     const { user } = useTelegram();
     const owner = user?.username || "Неизвестный";
-
+    const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
     const [leadName, setLeadName] = useState("");
     const [leadId, setLeadId] = useState("");
@@ -164,28 +168,77 @@ const Form = () => {
                             className="form-control"
                             name="diagonal"
                             value={currentService.diagonal}
-                            onChange={(e) => setCurrentService({ ...currentService, diagonal: e.target.value.replace(/\D/g, '') })}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                const num = Number(val);
+
+                                let autoType = currentService.workType;
+                                let autoPrice = currentService.price;
+
+                                if (num <= 31) {
+                                    autoType = "tv_std";
+                                    autoPrice = 69;
+                                    setShowTechChoice(false)
+                                } else if (num >= 32 && num <= 59) {
+                                    autoType = "tv_std";
+                                    autoPrice = 129;
+                                    setShowTechChoice(false)
+                                } else if (num >= 60) {
+
+                                    setShowTechChoice(true);
+                                }
+
+                                setCurrentService({
+                                    ...currentService,
+                                    diagonal: val,
+                                    workType: autoType,
+                                    price: autoPrice,
+                                });
+                            }}
                             type="text"
                             placeholder="Диагональ"
-
                         />
-                        <input className="form-control" name={"count"} type="number" placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "40%", textAlign: "center" } }
+
+                        <input className="form-control" name={"count"} type="number" readOnly={true} placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "40%", textAlign: "center" } }
                         />
                     </div>
+                    {showTechChoice && (
+                        <div className="mb-3 d-flex flex-row gap-3 justify-content-center">
+                            <button
+                                className="btn btn-outline-primary"
+                                onClick={() => {
+                                    setCurrentService({
+                                        ...currentService,
+                                        workType: "tv_big",
+                                        price: 149,
+                                    });
+                                    setShowTechChoice(false);
+                                }}
+                            >
+                                Один техник ($149)
+                            </button>
+                            <button
+                                className="btn btn-outline-primary"
+                                onClick={() => {
+                                    setCurrentService({
+                                        ...currentService,
+                                        workType: "tv_big2",
+                                        price: 189,
+                                    });
+                                    setShowTechChoice(false);
+                                }}
+                            >
+                                Два техника ($189)
+                            </button>
+                        </div>
+                    )}
 
                     <div className="mb-3 d-flex flex-row gap-3">
-                        <select
-                            className="form-select"
-                            name="workType"
-                            value={currentService.workType}
-                            onChange={handleServiceChange}
-                        >
-                            {workTypes.map((type) => (
-                                <option key={type.value} value={type.value}>
-                                    {type.label}
-                                </option>
-                            ))}
-                        </select>
+
+                        <div className="form-control" style={{ backgroundColor: "#f8f9fa" }}>
+                            {workTypes.find(w => w.value === currentService.workType)?.label || "—"}
+                        </div>
+
 
                         <input
                             type="number"
@@ -195,11 +248,15 @@ const Form = () => {
                             className="form-control"
                             style={{ width: "40%", textAlign: "center" }}
                             value={currentService.price}
-                            onChange={handleServiceChange}
+                            readOnly={true}
 
                         />
                     </div>
+                    <div className="mb-3 d-flex flex-row gap-3 align-items-center justify-content-center">
+                        <button className={"btn btn-primary"}>Дополнительные материалы</button>
+                        <button className={"btn btn-danger"}>Дополнительные услуги</button>
 
+                    </div>
                     <div className="mb-3">
                         <input
                             name="message"
