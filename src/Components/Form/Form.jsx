@@ -1,28 +1,29 @@
 import React, { useState } from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import 'bootstrap/dist/css/bootstrap.min.css';
-
 const workTypes = [
-    { label: "On stand / On existing Mounting", value: "tv_stand" },
-    { label: "Standard Mounting", value: "tv_std" },
-    { label: "Large TV Mounting", value: "tv_big" },
-    { label: "Frame TV Mounting", value: "tv_frame" },
-    { label: "Fireplace Installation", value: "firepalce" },
-    { label: "Mantel Mount TV Installation", value: "tv_mantle" },
-    { label: "Mounting on Solid Surfaces or Ceiling", value: "solid" },
-    { label: "TV Unmounting", value: "unmt" },
-    { label: "Cable Channel Installation", value: "ext" },
-    { label: "Wire Removal (behind wall)", value: "int" },
-    { label: "Cable management", value: "cbl_mng" },
-    { label: "Soundbar Installation", value: "sb" },
-    { label: "Outlet Installation", value: "outlet" },
-    { label: "Shelf Installation", value: "shelf" },
-    { label: "Painting and Picture Hanging", value: "painting" },
-    { label: "TV Backlight Installation", value: "backlight" },
-    { label: "PS/XBOX Installation", value: "xbox" },
-    { label: "Furniture Assembly (hourly)", value: "hours" },
-    { label: "Addons", value: "addons" },
+    { label: "On stand / On existing Mounting", value: "tv_stand", price: 0 }, // не указано
+    { label: "Standard Mounting", value: "tv_std", price: 39 }, // Fixed
+    { label: "Large TV Mounting", value: "tv_big", price: 149 }, // 60”+ one handyman
+    { label: "Large TV Mounting 2 handyman", value: "tv_big2", price: 189 }, // 60”+ two handyman
+    { label: "Frame TV Mounting", value: "tv_frame", price: 0 },
+    { label: "Fireplace Installation", value: "firepalce", price: 49 }, // Above the fireplace
+    { label: "Mantel Mount TV Installation", value: "tv_mantle", price: 69 }, // Full motion (предположительно)
+    { label: "Mounting on Solid Surfaces or Ceiling", value: "solid", price: 49 }, // Stone wall
+    { label: "TV Unmounting", value: "unmt", price: 49 }, // Dismount
+    { label: "Cable Channel Installation", value: "ext", price: 49 }, // Cord concealment (external)
+    { label: "Wire Removal (behind wall)", value: "int", price: 99 }, // Cord concealment (internal)
+    { label: "Cable management", value: "cbl_mng", price: 0 },
+    { label: "Soundbar Installation", value: "sb", price: 69 }, // Soundbar
+    { label: "Outlet Installation", value: "outlet", price: 59 }, // Install outlet
+    { label: "Shelf Installation", value: "shelf", price: 49 }, // Install wall shelf
+    { label: "Painting and Picture Hanging", value: "painting", price: 0 }, // не указано
+    { label: "TV Backlight Installation", value: "backlight", price: 149 },
+    { label: "PS/XBOX Installation", value: "xbox", price: 69 },
+    { label: "Furniture Assembly (hourly)", value: "hours", price: 0 }, // зависит от часов
+    { label: "Addons", value: "addons", price: 0 }, // не указано
 ];
+
 const statusColors = {
     "В работе": "#ffff00",
     "Другой регион": "#00e5ff",
@@ -48,7 +49,7 @@ const Form = () => {
     const [services, setServices] = useState([]);
     const [currentService, setCurrentService] = useState({
         diagonal: "",
-        count: "",
+        count: "1",
         workType: workTypes[0].value,
         message: "",
         price: "",
@@ -65,7 +66,7 @@ const Form = () => {
     const startAdding = () => {
         setCurrentService({
             diagonal: "",
-            count: "",
+            count: "1",
             workType: workTypes[0].value,
             message: "",
             price: "",
@@ -83,7 +84,7 @@ const Form = () => {
         setIsAdding(false);
         setCurrentService({
             diagonal: "",
-            count: "",
+            count: "1",
             workType: workTypes[0].value,
             message: "",
             price: "",
