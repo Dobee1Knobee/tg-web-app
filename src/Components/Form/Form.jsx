@@ -244,7 +244,7 @@ const Form = () => {
                             placeholder="Диагональ"
                         />
 
-                        <input className="form-control" name={"count"} type="number" min={1}   onKeyDown={(e) => e.preventDefault()} // запрещаем ввод с клавиатуры
+                        <input className="form-control" name={"count"} type="number" min={1}    // запрещаем ввод с клавиатуры
                                placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "30%", textAlign: "center" } }
                         />
                     </div>
