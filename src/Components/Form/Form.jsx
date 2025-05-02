@@ -249,7 +249,6 @@ const Form = () => {
                             name={"count"}
                             type="number"
                             min={1}
-                            onKeyDown={(e) => e.preventDefault()}  // ← this blocks *all* key presses, including the arrows
                             placeholder={"Количество"}
                             value={currentService.count}
                             onChange={(e) =>
@@ -361,7 +360,6 @@ const Form = () => {
                                     value={addonCount}
                                     min={1}
                                     onChange={(e) => setAddonCount(Number(e.target.value))}
-                                    onKeyDown={(e) => e.preventDefault()}
                                     style={{ width: "20%", textAlign: "center" }}
                                 />
                             </div>
@@ -427,7 +425,6 @@ const Form = () => {
                                     value={materialCount}
                                     min={1}
                                     onChange={(e) => setMaterialCount(Number(e.target.value))}
-                                    onKeyDown={(e) => e.preventDefault()}
                                     style={{ width: "20%", textAlign: "center" }}
                                 />
                             </div>
