@@ -6,20 +6,20 @@ const workTypes = [
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
     { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
 ];
-// const additionalServices = [
-//     { label: "Dismount an existing TV", value: "unmount_tv", price: 49 },
-//     { label: "Cord concealment (external)", value: "cord_external", price: 49 },
-//     { label: "Cord concealment (internal)", value: "cord_internal", price: 99 },
-//     { label: "Above the fireplace", value: "fireplace", price: 49 },
-//     { label: "Stone wall", value: "stone_wall", price: 49 },
-//     { label: "Soundbar", value: "soundbar", price: 79 },
-//     { label: "Install wall shelf", value: "shelf", price: 49 },
-//     { label: "Xbox, PlayStation", value: "xbox", price: 69 },
-//     { label: "Electric fireplace mounting", value: "electric_fireplace", price: 80 },
-//     { label: "Install an electrical outlet", value: "outlet", price: 59 },
-//     { label: "Soundbar with installation", value: "soundbar_full", price: 199 },
-//     { label: "TV backlight installation", value: "backlight", price: 149 },
-// ];
+const additionalServices = [
+    { label: "Dismount an existing TV", value: "unmount_tv", price: 49 },
+    { label: "Cord concealment (external)", value: "cord_external", price: 49 },
+    { label: "Cord concealment (internal)", value: "cord_internal", price: 99 },
+    { label: "Above the fireplace", value: "fireplace", price: 49 },
+    { label: "Stone wall", value: "stone_wall", price: 49 },
+    { label: "Soundbar", value: "soundbar", price: 79 },
+    { label: "Install wall shelf", value: "shelf", price: 49 },
+    { label: "Xbox, PlayStation", value: "xbox", price: 69 },
+    { label: "Electric fireplace mounting", value: "electric_fireplace", price: 80 },
+    { label: "Install an electrical outlet", value: "outlet", price: 59 },
+    { label: "Soundbar with installation", value: "soundbar_full", price: 199 },
+    { label: "TV backlight installation", value: "backlight", price: 149 },
+];
 const mount = [
     {label:"Fixed TV mount",value:"fixed_mount",price:39},
     {label:"Titling Mounting", value: "titling_mount",price:49},
@@ -64,6 +64,9 @@ const Form = () => {
     const [isEditingTotal, setIsEditingTotal] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [materialCount, setMaterialCount] = useState(1);
+    const [isAddingAddons, setIsAddingAddons] = useState(false);
+    const [selectedAddon, setSelectedAddon] = useState(null);
+    const [addonCount, setAddonCount] = useState(1);
 
     const [currentService, setCurrentService] = useState({
         diagonal: "",
@@ -73,6 +76,8 @@ const Form = () => {
         price: "",
         mountType: "",
         mountPrice: 0,
+        addons : [],
+        addonsPrice: 0,
     });
     const [isAdding, setIsAdding] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
@@ -93,7 +98,9 @@ const Form = () => {
             mountType: "",
             mountPrice: 0,
             materials: [],
-            materialPrice:0
+            materialPrice:0,
+            addons : [],
+            addonsPrice: 0
         });
 
         setEditIndex(null);
@@ -115,6 +122,8 @@ const Form = () => {
             price: "",
             mountType: "",
             mountPrice: 0,
+            addons : [],
+            addonsPrice: 0,
         });
         setCustomTotal(null);
         setIsEditingTotal(false);
@@ -284,7 +293,7 @@ const Form = () => {
 
                     <div className="d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center">
                         <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>Дополнительные материалы</button>
-                        <button className={"btn btn-warning"}>Дополнительные услуги</button>
+                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>Дополнительные услуги</button>
                         <select
                             className="form-select"
                             name="mountType"
@@ -308,6 +317,70 @@ const Form = () => {
                         </select>
 
                     </div>
+                    {isAddingAddons && (
+                        <div className=" card p-3 text-center mb-3">
+                            <div className=" p-3 position-relative">
+                                <button
+                                    type="button"
+                                    className="btn-close position-absolute top-0 end-0 "
+                                    aria-label="Close"
+                                    onClick={() => setIsAddingAddons(false)} // закрыть форму добавления
+                                ></button>
+                            </div>
+                            <h5>Выберите услуги</h5>
+                            <div className={"d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
+                                <select
+                                    className="form-select"
+                                    onChange={(e) => {
+                                        const addon = additionalServices.find(m => m.value === e.target.value);
+                                        setSelectedAddon(addon || null);
+                                    }}
+                                >
+                                    <option value="">Выберите материал</option>
+                                    {additionalServices.map((m, i) => (
+                                        <option key={i} value={m.value}>{m.label} — {m.price}$</option>
+                                    ))}
+                                </select>
+                                <input
+                                    className="form-control"
+                                    type="number"
+
+                                    value={addonCount}
+                                    min={1}
+                                    onChange={(e) => setAddonCount(Number(e.target.value))}
+                                    onKeyDown={(e) => e.preventDefault()}
+                                    style={{ width: "20%", textAlign: "center" }}
+                                />
+                            </div>
+                            <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => {
+                                    if (!selectedAddon) return;
+                                    const updatedAddons = currentService.addons || [];
+                                    updatedAddons.push({
+                                        ...selectedAddon,
+                                        count: addonCount,
+                                    });
+
+                                    const updatedPrice = (currentService.addonsPrice || 0) + (selectedAddon.price * addonCount);
+
+                                    setCurrentService({
+                                        ...currentService,
+                                        addons: updatedAddons,
+                                        addonsPrice: updatedPrice,
+                                    });
+
+                                    // Сброс
+                                    setSelectedAddon(null);
+                                    setAddonCount(1);
+                                    setIsAddingAddons(false)
+                                }}
+                            >
+                                ➕ Добавить
+                            </button>
+
+                        </div>
+                        )}
                     {isAddingMaterials && (
                         <div className=" card p-3 text-center mb-3">
                             <div className=" p-3 position-relative">
@@ -375,6 +448,19 @@ const Form = () => {
 
                         </div>
                     )}
+                    {currentService.addons?.length > 0 && (
+                        <div className="mb-3">
+                            <h6>🛠️ Дополнительные услуги:</h6>
+                            <ul className="list-group">
+                                {currentService.addons.map((mat, idx) => (
+                                    <li key={idx} className="list-group-item d-flex justify-content-between">
+                                        <span>{mat.label} × {mat.count}</span>
+                                        <span>{mat.price * mat.count} $</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     {currentService.materials?.length > 0 && (
                         <div className="mb-3">
                             <h6>📦 Материалы:</h6>
@@ -436,6 +522,18 @@ const Form = () => {
                                             </ul>
                                         </div>
                                     )}
+                                    {s.addons?.length > 0 && (
+                                        <div>
+                                            🛠️ Дополнительные услуги:
+                                            <ul className="mb-0">
+                                                {s.addons.map((mat, idx) => (
+                                                    <li key={idx}>
+                                                        {mat.label} × {mat.count} — ${mat.price * mat.count}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
 
 
                                 </span>
@@ -464,8 +562,8 @@ const Form = () => {
                             <b>
                                 {customTotal !== null
                                     ? `${customTotal} $`
-                                    : `${services.map(s => Number((s.price + s.mountPrice + (s.materialPrice || 0)) * s.count) || 0)
-
+                                    : `${services
+                                        .map(s => (s.price + s.mountPrice + (s.materialPrice||0) + (s.addonsPrice||0)) * s.count)
                                         .reduce((a, b) => a + b, 0)
                                         .toLocaleString()} $`}
                             </b>
