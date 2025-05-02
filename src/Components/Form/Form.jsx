@@ -6,20 +6,20 @@ const workTypes = [
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
     { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
 ];
-const additionalServices = [
-    { label: "Dismount an existing TV", value: "unmount_tv", price: 49 },
-    { label: "Cord concealment (external)", value: "cord_external", price: 49 },
-    { label: "Cord concealment (internal)", value: "cord_internal", price: 99 },
-    { label: "Above the fireplace", value: "fireplace", price: 49 },
-    { label: "Stone wall", value: "stone_wall", price: 49 },
-    { label: "Soundbar", value: "soundbar", price: 79 },
-    { label: "Install wall shelf", value: "shelf", price: 49 },
-    { label: "Xbox, PlayStation", value: "xbox", price: 69 },
-    { label: "Electric fireplace mounting", value: "electric_fireplace", price: 80 },
-    { label: "Install an electrical outlet", value: "outlet", price: 59 },
-    { label: "Soundbar with installation", value: "soundbar_full", price: 199 },
-    { label: "TV backlight installation", value: "backlight", price: 149 },
-];
+// const additionalServices = [
+//     { label: "Dismount an existing TV", value: "unmount_tv", price: 49 },
+//     { label: "Cord concealment (external)", value: "cord_external", price: 49 },
+//     { label: "Cord concealment (internal)", value: "cord_internal", price: 99 },
+//     { label: "Above the fireplace", value: "fireplace", price: 49 },
+//     { label: "Stone wall", value: "stone_wall", price: 49 },
+//     { label: "Soundbar", value: "soundbar", price: 79 },
+//     { label: "Install wall shelf", value: "shelf", price: 49 },
+//     { label: "Xbox, PlayStation", value: "xbox", price: 69 },
+//     { label: "Electric fireplace mounting", value: "electric_fireplace", price: 80 },
+//     { label: "Install an electrical outlet", value: "outlet", price: 59 },
+//     { label: "Soundbar with installation", value: "soundbar_full", price: 199 },
+//     { label: "TV backlight installation", value: "backlight", price: 149 },
+// ];
 const mount = [
     {label:"Fixed TV mount",value:"fixed_mount",price:39},
     {label:"Titling Mounting", value: "titling_mount",price:49},
@@ -82,9 +82,7 @@ const Form = () => {
     const handleServiceChange = (e) => {
         setCurrentService({ ...currentService, [e.target.name]: e.target.value });
     };
-    const startAddingMaterials = () => {
-        setCurrentService()
-    }
+
     const startAdding = () => {
         setCurrentService({
             diagonal: "",
