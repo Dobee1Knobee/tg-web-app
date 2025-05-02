@@ -244,8 +244,21 @@ const Form = () => {
                             placeholder="Диагональ"
                         />
 
-                        <input className="form-control" name={"count"} type="number" min={1}    // запрещаем ввод с клавиатуры
-                               placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "30%", textAlign: "center" } }
+                        <input
+                            className="form-control"
+                            name={"count"}
+                            type="number"
+                            min={1}
+                            onKeyDown={(e) => e.preventDefault()}  // ← this blocks *all* key presses, including the arrows
+                            placeholder={"Количество"}
+                            value={currentService.count}
+                            onChange={(e) =>
+                                setCurrentService({
+                                    ...currentService,
+                                    count: e.target.value.replace(/\D/g, ''),
+                                })
+                            }
+                            style={{ width: "30%", textAlign: "center" }}
                         />
                     </div>
                     {showTechChoice && (
