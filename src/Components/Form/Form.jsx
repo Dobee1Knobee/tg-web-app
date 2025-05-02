@@ -2,36 +2,39 @@ import React, { useState } from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import 'bootstrap/dist/css/bootstrap.min.css';
 const workTypes = [
-    // { label: "On stand / On existing Mounting", value: "tv_stand", price: 0 }, // не указано
-    // { label: "Standard Mounting", value: "tv_std", price: 39 }, // Fixed
-    // { label: "Large TV Mounting", value: "tv_big", price: 149 }, // 60”+ one handyman
-    // { label: "Large TV Mounting 2 handyman", value: "tv_big2", price: 189 }, // 60”+ two handyman
-    // { label: "Frame TV Mounting", value: "tv_frame", price: 0 },
-    // { label: "Fireplace Installation", value: "firepalce", price: 49 }, // Above the fireplace
-    // { label: "Mantel Mount TV Installation", value: "tv_mantle", price: 0 }, // Кастомный маунт с пультом управления
-    // { label: "Mounting on Solid Surfaces or Ceiling", value: "solid", price: 49 }, // Stone wall
-    // { label: "TV Unmounting", value: "unmt", price: 49 }, // Dismount
-    // { label: "Cable Channel Installation", value: "ext", price: 49 }, // Cord concealment (external)
-    // { label: "Wire Removal (behind wall)", value: "int", price: 99 }, // Cord concealment (internal)
-    // { label: "Cable management", value: "cbl_mng", price: 0 },
-    // { label: "Soundbar Installation", value: "sb", price: 69 }, // Soundbar
-    // { label: "Outlet Installation", value: "outlet", price: 59 }, // Install outlet
-    // { label: "Shelf Installation", value: "shelf", price: 49 }, // Install wall shelf
-    // { label: "Painting and Picture Hanging", value: "painting", price: 0 }, // не указано
-    // { label: "TV Backlight Installation", value: "backlight", price: 149 },
-    // { label: "PS/XBOX Installation", value: "xbox", price: 69 },
-    // { label: "Furniture Assembly (hourly)", value: "hours", price: 0 }, // зависит от часов
-    // { label: "Addons", value: "addons", price: 0 }, // не указано
      { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
     { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
 ];
-
+const additionalServices = [
+    { label: "Dismount an existing TV", value: "unmount_tv", price: 49 },
+    { label: "Cord concealment (external)", value: "cord_external", price: 49 },
+    { label: "Cord concealment (internal)", value: "cord_internal", price: 99 },
+    { label: "Above the fireplace", value: "fireplace", price: 49 },
+    { label: "Stone wall", value: "stone_wall", price: 49 },
+    { label: "Soundbar", value: "soundbar", price: 79 },
+    { label: "Install wall shelf", value: "shelf", price: 49 },
+    { label: "Xbox, PlayStation", value: "xbox", price: 69 },
+    { label: "Electric fireplace mounting", value: "electric_fireplace", price: 80 },
+    { label: "Install an electrical outlet", value: "outlet", price: 59 },
+    { label: "Soundbar with installation", value: "soundbar_full", price: 199 },
+    { label: "TV backlight installation", value: "backlight", price: 149 },
+];
 const mount = [
     {label:"Fixed TV mount",value:"fixed_mount",price:39},
     {label:"Titling Mounting", value: "titling_mount",price:49},
     {label:"Full Motion", value: "full_motion",price:69},
 ]
+const materialsList = [
+    { label: "Brush wall plate", value: "brush_plate", price: 6 },
+    { label: "Cable channel rack", value: "cable_channel", price: 6 },
+    { label: "6ft extension cord", value: "ext6", price: 8 },
+    { label: "12ft extension cord", value: "ext12", price: 14 },
+    { label: "Soundbar mount", value: "soundbar_mount", price: 21 },
+    { label: "Xbox, PlayStation mount", value: "xbox_mount", price: 35 },
+    { label: "HDMI cable 118″", value: "hdmi_118", price: 14 },
+    { label: "HDMI cable 196″", value: "hdmi_196", price: 24 },
+];
 
 
 const statusColors = {
@@ -57,6 +60,11 @@ const Form = () => {
     const [leadName, setLeadName] = useState("");
     const [leadId, setLeadId] = useState("");
     const [services, setServices] = useState([]);
+    const [customTotal, setCustomTotal] = useState(null);
+    const [isEditingTotal, setIsEditingTotal] = useState(false);
+    const [selectedMaterial, setSelectedMaterial] = useState(null);
+    const [materialCount, setMaterialCount] = useState(1);
+
     const [currentService, setCurrentService] = useState({
         diagonal: "",
         count: "1",
@@ -68,13 +76,15 @@ const Form = () => {
     });
     const [isAdding, setIsAdding] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
-
+    const [isAddingMaterials, setIsAddingMaterials] = useState(false);
     const handleStatusChange = (e) => setStatus(e.target.value);
 
     const handleServiceChange = (e) => {
         setCurrentService({ ...currentService, [e.target.name]: e.target.value });
     };
-
+    const startAddingMaterials = () => {
+        setCurrentService()
+    }
     const startAdding = () => {
         setCurrentService({
             diagonal: "",
@@ -84,6 +94,8 @@ const Form = () => {
             price: "",
             mountType: "",
             mountPrice: 0,
+            materials: [],
+            materialPrice:0
         });
 
         setEditIndex(null);
@@ -106,7 +118,8 @@ const Form = () => {
             mountType: "",
             mountPrice: 0,
         });
-
+        setCustomTotal(null);
+        setIsEditingTotal(false);
         setEditIndex(null);
     };
 
@@ -224,7 +237,8 @@ const Form = () => {
                             placeholder="Диагональ"
                         />
 
-                        <input className="form-control" name={"count"} type="number" min={1} placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "30%", textAlign: "center" } }
+                        <input className="form-control" name={"count"} type="number" min={1}   onKeyDown={(e) => e.preventDefault()} // запрещаем ввод с клавиатуры
+                               placeholder={"Количество"} value={currentService.count} onChange={(e => setCurrentService({...currentService,count: e.target.value.replace(/\D/g, '')}))}  style={{ width: "30%", textAlign: "center" } }
                         />
                     </div>
                     {showTechChoice && (
@@ -271,7 +285,7 @@ const Form = () => {
                     </div>
 
                     <div className="d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center">
-                        <button className={"btn btn-primary"}>Дополнительные материалы</button>
+                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>Дополнительные материалы</button>
                         <button className={"btn btn-warning"}>Дополнительные услуги</button>
                         <select
                             className="form-select"
@@ -284,18 +298,99 @@ const Form = () => {
                                 setCurrentService({
                                     ...currentService,
                                     mountType: value,
-                                    mountPrice: selectedMount?.price || 0,
+                                    mountPrice: selectedMount?.price  || 0,
                                 });
 
                             }}
                         >
                             <option value="">Тип крепления</option>
-                            <option value="fixed">Fixed — $39</option>
-                            <option value="tilting">Tilting — $49</option>
+                            <option value="fixed_mount">Fixed — $39</option>
+                            <option value="titling_mount">Tilting — $49</option>
                             <option value="full_motion">Full motion — $69</option>
                         </select>
 
                     </div>
+                    {isAddingMaterials && (
+                        <div className=" card p-3 text-center mb-3">
+                            <div className=" p-3 position-relative">
+                                <button
+                                    type="button"
+                                    className="btn-close position-absolute top-0 end-0 "
+                                    aria-label="Close"
+                                    onClick={() => setIsAddingMaterials(false)} // закрыть форму добавления
+                                ></button>
+
+                                {/* Здесь остальной контент карточки */}
+                            </div>
+                            <h5>Выберите материалы</h5>
+                            <div className={"d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
+                                <select
+                                    className="form-select"
+                                    onChange={(e) => {
+                                        const material = materialsList.find(m => m.value === e.target.value);
+                                        setSelectedMaterial(material || null);
+                                    }}
+                                >
+                                    <option value="">Выберите материал</option>
+                                    {materialsList.map((m, i) => (
+                                        <option key={i} value={m.value}>{m.label} — {m.price}$</option>
+                                    ))}
+                                </select>
+                                <input
+                                    className="form-control"
+                                    type="number"
+                                    placeholder="1"
+                                    value={materialCount}
+                                    min={1}
+                                    onChange={(e) => setMaterialCount(Number(e.target.value))}
+                                    onKeyDown={(e) => e.preventDefault()}
+                                    style={{ width: "20%", textAlign: "center" }}
+                                />
+                            </div>
+
+                            <button
+                                className="btn btn-sm btn-outline-primary"
+                                onClick={() => {
+                                    if (!selectedMaterial) return;
+                                    const updatedMaterials = currentService.materials || [];
+                                    updatedMaterials.push({
+                                        ...selectedMaterial,
+                                        count: materialCount,
+                                    });
+
+                                    const updatedPrice = (currentService.materialPrice || 0) + (selectedMaterial.price * materialCount);
+
+                                    setCurrentService({
+                                        ...currentService,
+                                        materials: updatedMaterials,
+                                        materialPrice: updatedPrice,
+                                    });
+
+                                    // Сброс
+                                    setSelectedMaterial(null);
+                                    setMaterialCount(1);
+                                    setIsAddingMaterials(false)
+                                }}
+                            >
+                                ➕ Добавить
+                            </button>
+
+                        </div>
+                    )}
+                    {currentService.materials?.length > 0 && (
+                        <div className="mb-3">
+                            <h6>📦 Материалы:</h6>
+                            <ul className="list-group">
+                                {currentService.materials.map((mat, idx) => (
+                                    <li key={idx} className="list-group-item d-flex justify-content-between">
+                                        <span>{mat.label} × {mat.count}</span>
+                                        <span>{mat.price * mat.count} $</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
                     <div className="mb-3">
                         <input
                             name="message"
@@ -331,6 +426,19 @@ const Form = () => {
                                     )}
                                     {s.price && <>💵 Стоимость  <b>{s.price} $</b></>}
                                     {s.message && <div>📝 Комментарий: {s.message}</div>}
+                                    {s.materials?.length > 0 && (
+                                        <div>
+                                            📦 Материалы:
+                                            <ul className="mb-0">
+                                                {s.materials.map((mat, idx) => (
+                                                    <li key={idx}>
+                                                        {mat.label} × {mat.count} — ${mat.price * mat.count}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
 
                                 </span>
                                 <div className="btn-group">
@@ -356,13 +464,44 @@ const Form = () => {
                         <h5>
                             💰 Общая сумма:{" "}
                             <b>
-                                {services
-                                    .map((s) => Number(s.price * s.count + s.mountPrice) || 0)
-                                    .reduce((a, b) => a + b, 0)
-                                    .toLocaleString()} $
+                                {customTotal !== null
+                                    ? `${customTotal} $`
+                                    : `${services.map(s => Number((s.price + s.mountPrice + (s.materialPrice || 0)) * s.count) || 0)
+
+                                        .reduce((a, b) => a + b, 0)
+                                        .toLocaleString()} $`}
                             </b>
                         </h5>
+
+                        {!isEditingTotal ? (
+                            <button className="btn btn-sm btn-outline-secondary mt-2" onClick={() => setIsEditingTotal(true)}>
+                                Изменить вручную
+                            </button>
+                        ) : (
+                            <div className="mt-2 d-flex flex-row gap-2 justify-content-end">
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    placeholder="Сумма"
+                                    style={{ width: "150px", textAlign: "center" }}
+                                    value={customTotal || ""}
+                                    onChange={(e) => setCustomTotal(e.target.value)}
+                                />
+                                <button className="btn btn-sm btn-outline-danger" onClick={() => {
+                                    setCustomTotal(null);
+                                    setIsEditingTotal(false);
+                                }}>
+                                    Сбросить
+                                </button>
+                                <button className="btn btn-sm btn-outline-success" onClick={() => {
+                                    setIsEditingTotal(false);
+                                }}>
+                                    Подтвердить
+                                </button>
+                            </div>
+                        )}
                     </div>
+
                 </div>
             )}
         </div>
