@@ -63,8 +63,7 @@ const Form = () => {
     const [services, setServices] = useState([]);
     const [customTotal, setCustomTotal] = useState(null);
     const [isEditingTotal, setIsEditingTotal] = useState(false);
-    const [selectedMaterial, setSelectedMaterial] = useState(null);
-    const [materialCount, setMaterialCount] = useState(1);
+
     const [isAddingAddons, setIsAddingAddons] = useState(false);
 
     const [selectedAddon, setSelectedAddon] = useState(null);
@@ -224,13 +223,7 @@ const Form = () => {
         setIsAddingAddons(false);
     };
 
-// При закрытии формы редактирования
-    const handleCloseAddonEdit = () => {
-        setSelectedAddon(null);
-        setAddonCount(1);
-        setEditAddonIndex(null);
-        setIsAddingAddons(false);
-    };
+
     const removeAddon = (idx) => {
         const updated = [...currentService.addons];
         const removed = updated.splice(idx,1)[0];
