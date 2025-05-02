@@ -58,16 +58,22 @@ const Form = () => {
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
     const [leadName, setLeadName] = useState("");
-    const [leadId, setLeadId] = useState("");
+    const [addressLead, setAddressLead] = useState("");
+    const [phoneNumberLead,setPhoneNumberLead] = useState("");
     const [services, setServices] = useState([]);
     const [customTotal, setCustomTotal] = useState(null);
     const [isEditingTotal, setIsEditingTotal] = useState(false);
     const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [materialCount, setMaterialCount] = useState(1);
     const [isAddingAddons, setIsAddingAddons] = useState(false);
-    const [selectedAddon, setSelectedAddon] = useState(null);
-    const [addonCount, setAddonCount] = useState(1);
 
+    const [selectedAddon, setSelectedAddon] = useState(null);
+    const [selectedAddMaterials, setSelectedAddMaterials] = useState(null);
+    const [addMaterialsCount, setAddMaterialsCount] = useState(1);
+
+    const [addonCount, setAddonCount] = useState(1);
+    const [dataLead, setDataLead] = useState("");
+    const [commentOrder,setCommentOrder] = useState("");
     const [currentService, setCurrentService] = useState({
         diagonal: "",
         count: "1",
@@ -76,6 +82,7 @@ const Form = () => {
         price: "",
         mountType: "",
         mountPrice: 0,
+        materials:[],
         addons : [],
         addonsPrice: 0,
     });
@@ -129,11 +136,109 @@ const Form = () => {
         setIsEditingTotal(false);
         setEditIndex(null);
     };
+    const saveMaterial = () => {
+        if (!selectedAddMaterials) return;
+
+        const updatedMaterials = [...currentService.materials];
+
+        if (editAddonMaterialIndex !== null) {
+            updatedMaterials[editAddonMaterialIndex] = { ...selectedAddMaterials, count: addMaterialsCount };
+        } else {
+            updatedMaterials.push({ ...selectedAddMaterials, count: addMaterialsCount });
+        }
+
+        const updatedPrice = updatedMaterials.reduce((sum, mat) => sum + mat.price * mat.count, 0);
+
+        setCurrentService({
+            ...currentService,
+            materials: updatedMaterials,
+            materialPrice: updatedPrice,
+        });
+
+        setSelectedAddMaterials(null);
+        setAddMaterialsCount(1);
+        setEditAddonMaterialIndex(null);
+        setIsAddingMaterials(false);
+    };
 
     const editService = (index) => {
         setCurrentService(services[index]);
         setEditIndex(index);
         setIsAdding(true);
+    };
+    const [editAddonIndex, setEditAddonIndex] = useState(null);
+    const [editAddonMaterialIndex, setEditAddonMaterialIndex] = useState(null);
+
+    const editAddon = (idx) => {
+        const add = currentService.addons[idx];
+        setSelectedAddon(add);
+        setAddonCount(add.count);
+        setEditAddonIndex(idx);
+        setIsAddingAddons(true);
+    };
+    const handleCloseMaterialEdit = () => {
+        setSelectedAddMaterials(null);
+        setAddMaterialsCount(1);
+        setEditAddonMaterialIndex(null);
+        setIsAddingMaterials(false);
+    };
+    const editMaterials = (idx) => {
+        const addMat = currentService.materials[idx];
+        setSelectedAddMaterials(addMat);
+        setAddMaterialsCount(addMat.count);
+        setEditAddonMaterialIndex(idx);
+        setIsAddingMaterials(true);
+    };
+    const removeMaterial = (idx) => {
+        const updated = [...currentService.materials];
+        const removed = updated.splice(idx, 1)[0];
+        setCurrentService({
+            ...currentService,
+            materials: updated,
+            materialPrice: currentService.materialPrice - removed.price * removed.count,
+        });
+    };
+    const saveAddon = () => {
+        if (!selectedAddon) return;
+
+        const updatedAddons = [...currentService.addons];
+
+        if (editAddonIndex !== null) {
+            updatedAddons[editAddonIndex] = { ...selectedAddon, count: addonCount };
+        } else {
+            updatedAddons.push({ ...selectedAddon, count: addonCount });
+        }
+
+        const updatedPrice = updatedAddons.reduce((sum, addon) => sum + addon.price * addon.count, 0);
+
+        setCurrentService({
+            ...currentService,
+            addons: updatedAddons,
+            addonsPrice: updatedPrice,
+        });
+
+        // Сброс
+        setSelectedAddon(null);
+        setAddonCount(1);
+        setEditAddonIndex(null);
+        setIsAddingAddons(false);
+    };
+
+// При закрытии формы редактирования
+    const handleCloseAddonEdit = () => {
+        setSelectedAddon(null);
+        setAddonCount(1);
+        setEditAddonIndex(null);
+        setIsAddingAddons(false);
+    };
+    const removeAddon = (idx) => {
+        const updated = [...currentService.addons];
+        const removed = updated.splice(idx,1)[0];
+        setCurrentService({
+            ...currentService,
+            addons: updated,
+            addonsPrice: currentService.addonsPrice - removed.price*removed.count
+        });
     };
 
     const removeService = (index) => {
@@ -144,15 +249,7 @@ const Form = () => {
         <div className="container py-4">
             <h2 className="mb-3 text-center mt-4">Создание новой заявки</h2>
 
-            <div className="mb-3">
-                <input
-                    className="form-control"
-                    type="text"
-                    placeholder="Номер лида"
-                    value={leadId}
-                    onChange={(e) => setLeadId(e.target.value)}
-                />
-            </div>
+
 
             <div className="mb-3">
                 <input className="form-control" placeholder={`Владелец заявки: ${owner}`} readOnly />
@@ -189,20 +286,77 @@ const Form = () => {
                     onChange={(e) => setLeadName(e.target.value)}
                 />
             </div>
+            <div className="mb-3">
+                <input
+                    className="form-control"
+                    type="text"
+                    placeholder="Адрес"
+                    value={addressLead}
+                    onChange={(e) => setAddressLead(e.target.value)}
+                />
+            </div>
+            <div className="mb-3">
+                <input
+                    className="form-control"
+                    type={"text"}
+                    placeholder="Номер"
+                    value={phoneNumberLead}
+                    onChange={(e) => setPhoneNumberLead(e.target.value)}
+                />
+            </div>
+            <div className="mb-3">
+                <input
+                    className="form-control"
+                    type={"datetime-local"}
+                    value={dataLead}
+                    onChange={(e) => setDataLead(e.target.value)}
+                />
+            </div>
+            <div className="mb-3">
+                {/*подтягивать по манагеру //TODO*/}
+                <select className={"form-select"}>
+                    <option>Город</option>
+                    <option>New york</option>
+                    <option>Город</option>
+                    <option>Город</option>
+                    <option>Город</option>
+                </select>
+            </div>
+            <div className="mb-3">
+                {/*подтягивать по манагеру //TODO*/}
+                <select className={"form-select"}>
+                    <option>Мастер</option>
+                    <option>Максим</option>
+                    <option>Андрей</option>
+                    <option>Иван</option>
+                    <option>Антон</option>
+                </select>
+            </div>
+            <div className="mb-3">
+                <input
+                    className="form-control"
+                    type={"text"}
+                    placeholder="Коментарий к заказу"
+                    value={commentOrder}
+                    onChange={(e) => setCommentOrder(e.target.value)}
+                />
+            </div>
 
-            <button className="btn btn-primary" onClick={startAdding}>
-                Добавить услугу
-            </button>
-
+            {!isAdding && (
+                <button className="btn btn-primary" onClick={startAdding}>
+                    Добавить услугу
+                </button>
+            )}
             {isAdding && (
                 <div className="card my-3 p-3">
                     <div className=" p-3 position-relative">
                         <button
                             type="button"
-                            className="btn-close position-absolute top-0 end-0 "
+                            className="btn-close position-absolute top-0 end-0"
                             aria-label="Close"
-                            onClick={() => setIsAdding(false)} // закрыть форму добавления
+                            onClick={() => setIsAdding(false)}
                         ></button>
+
 
                         {/* Здесь остальной контент карточки */}
                     </div>
@@ -304,8 +458,8 @@ const Form = () => {
                     </div>
 
                     <div className="d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center">
-                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>Дополнительные материалы</button>
-                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>Дополнительные услуги</button>
+                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>Доп материалы</button>
+                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>Доп услуги</button>
                         <select
                             className="form-select"
                             name="mountType"
@@ -343,12 +497,14 @@ const Form = () => {
                             <div className={"d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
                                 <select
                                     className="form-select"
+                                    value={selectedAddon?.value || ''}
+
                                     onChange={(e) => {
                                         const addon = additionalServices.find(m => m.value === e.target.value);
                                         setSelectedAddon(addon || null);
                                     }}
                                 >
-                                    <option value="">Выберите материал</option>
+                                    <option value="">Выберите услугу</option>
                                     {additionalServices.map((m, i) => (
                                         <option key={i} value={m.value}>{m.label} — {m.price}$</option>
                                     ))}
@@ -365,52 +521,31 @@ const Form = () => {
                             </div>
                             <button
                                 className="btn btn-sm btn-outline-primary"
-                                onClick={() => {
-                                    if (!selectedAddon) return;
-                                    const updatedAddons = currentService.addons || [];
-                                    updatedAddons.push({
-                                        ...selectedAddon,
-                                        count: addonCount,
-                                    });
-
-                                    const updatedPrice = (currentService.addonsPrice || 0) + (selectedAddon.price * addonCount);
-
-                                    setCurrentService({
-                                        ...currentService,
-                                        addons: updatedAddons,
-                                        addonsPrice: updatedPrice,
-                                    });
-
-                                    // Сброс
-                                    setSelectedAddon(null);
-                                    setAddonCount(1);
-                                    setIsAddingAddons(false)
-                                }}
+                                onClick={saveAddon}
                             >
-                                ➕ Добавить
+                                {editAddonIndex !== null ? "💾 Сохранить" : "➕ Добавить"}
                             </button>
 
                         </div>
                         )}
                     {isAddingMaterials && (
-                        <div className=" card p-3 text-center mb-3">
-                            <div className=" p-3 position-relative">
+                        <div className="card p-3 text-center mb-3">
+                            <div className="p-3 position-relative">
                                 <button
                                     type="button"
-                                    className="btn-close position-absolute top-0 end-0 "
+                                    className="btn-close position-absolute top-0 end-0"
                                     aria-label="Close"
-                                    onClick={() => setIsAddingMaterials(false)} // закрыть форму добавления
+                                    onClick={handleCloseMaterialEdit}
                                 ></button>
-
-                                {/* Здесь остальной контент карточки */}
                             </div>
-                            <h5>Выберите материалы</h5>
+                            <h5>{editAddonMaterialIndex !== null ? "Редактировать материал" : "Добавить материал"}</h5>
                             <div className={"d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
                                 <select
                                     className="form-select"
+                                    value={selectedAddMaterials?.value || ''}
                                     onChange={(e) => {
-                                        const material = materialsList.find(m => m.value === e.target.value);
-                                        setSelectedMaterial(material || null);
+                                        const mat = materialsList.find(m => m.value === e.target.value);
+                                        setSelectedAddMaterials(mat);
                                     }}
                                 >
                                     <option value="">Выберите материал</option>
@@ -421,43 +556,22 @@ const Form = () => {
                                 <input
                                     className="form-control"
                                     type="number"
-                                    placeholder="1"
-                                    value={materialCount}
+                                    value={addMaterialsCount}
                                     min={1}
-                                    onChange={(e) => setMaterialCount(Number(e.target.value))}
+                                    onChange={(e) => setAddMaterialsCount(Number(e.target.value))}
                                     style={{ width: "20%", textAlign: "center" }}
                                 />
                             </div>
-
                             <button
                                 className="btn btn-sm btn-outline-primary"
-                                onClick={() => {
-                                    if (!selectedMaterial) return;
-                                    const updatedMaterials = currentService.materials || [];
-                                    updatedMaterials.push({
-                                        ...selectedMaterial,
-                                        count: materialCount,
-                                    });
-
-                                    const updatedPrice = (currentService.materialPrice || 0) + (selectedMaterial.price * materialCount);
-
-                                    setCurrentService({
-                                        ...currentService,
-                                        materials: updatedMaterials,
-                                        materialPrice: updatedPrice,
-                                    });
-
-                                    // Сброс
-                                    setSelectedMaterial(null);
-                                    setMaterialCount(1);
-                                    setIsAddingMaterials(false)
-                                }}
+                                onClick={saveMaterial}
                             >
-                                ➕ Добавить
+                                {editAddonMaterialIndex !== null ? "💾 Сохранить" : "➕ Добавить"}
                             </button>
-
                         </div>
                     )}
+
+
                     {currentService.addons?.length > 0 && (
                         <div className="mb-3">
                             <h6>🛠️ Дополнительные услуги:</h6>
@@ -466,6 +580,20 @@ const Form = () => {
                                     <li key={idx} className="list-group-item d-flex justify-content-between">
                                         <span>{mat.label} × {mat.count}</span>
                                         <span>{mat.price * mat.count} $</span>
+                                        <div className="btn-group">
+                                            <button
+                                                className="btn btn-sm btn-outline-secondary"
+                                                onClick={() => editAddon(idx)}    // ← тут
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => removeAddon(idx)}  // ← и тут
+                                            >
+                                                🗑️
+                                            </button>
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
@@ -479,6 +607,21 @@ const Form = () => {
                                     <li key={idx} className="list-group-item d-flex justify-content-between">
                                         <span>{mat.label} × {mat.count}</span>
                                         <span>{mat.price * mat.count} $</span>
+                                        <div className="btn-group">
+                                            <button
+                                                className="btn btn-sm btn-outline-secondary"
+                                                onClick={() => editMaterials(idx)}
+                                            >
+                                                ✏️
+                                            </button>
+                                            <button
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => removeMaterial(idx)}
+                                            >
+                                                🗑️
+                                            </button>
+
+                                        </div>
                                     </li>
                                 ))}
                             </ul>
@@ -528,8 +671,10 @@ const Form = () => {
                                                     <li key={idx}>
                                                         {mat.label} × {mat.count} — ${mat.price * mat.count}
                                                     </li>
+
                                                 ))}
                                             </ul>
+
                                         </div>
                                     )}
                                     {s.addons?.length > 0 && (
@@ -552,13 +697,13 @@ const Form = () => {
                                         className="btn btn-sm btn-outline-secondary"
                                         onClick={() => editService(i)}
                                     >
-                                        Редактировать
+                                        ✏️
                                     </button>
                                     <button
                                         className="btn btn-sm btn-outline-danger"
                                         onClick={() => removeService(i)}
                                     >
-                                        Удалить
+                                        🗑️
                                     </button>
                                 </div>
                             </li>
@@ -573,7 +718,7 @@ const Form = () => {
                                 {customTotal !== null
                                     ? `${customTotal} $`
                                     : `${services
-                                        .map(s => (s.price + s.mountPrice + (s.materialPrice||0) + (s.addonsPrice||0)) * s.count)
+                                        .map(s => ((s.price + s.mountPrice ) * s.count + (s.materialPrice||0) + (s.addonsPrice||0)))
                                         .reduce((a, b) => a + b, 0)
                                         .toLocaleString()} $`}
                             </b>
