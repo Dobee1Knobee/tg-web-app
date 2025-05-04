@@ -223,7 +223,7 @@ const Form = () => {
         setIsAddingAddons(false);
     };
     const submitToGoogleSheets = async () => {
-        const url = 'https://script.google.com/macros/s/AKfycbwzgjrhGPq9TJGytNhcb2-A0FM8h8RPLeZfSOMBsx2DtplDF0DfXv6oK_0AbDepqPyrPg/exec';
+        const url = 'https://script.google.com/macros/s/AKfycbyPekD2ONehXTfJ9YwPKJ_5QAeKu4EKCbJ10eFMut2080xENu9Ytsw-RlBpaVjtIODveA/exec';
 
 
         const total = customTotal !== null
