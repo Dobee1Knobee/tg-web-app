@@ -238,7 +238,7 @@ const Form = () => {
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
-            date: dataLead,
+            date: "2025-05-05T14:00",
             city: "Нью-Йорк", // заменишь потом на реальный выбор
             master: "Максим", // или тот, кого выбрал
             comment: commentOrder,
