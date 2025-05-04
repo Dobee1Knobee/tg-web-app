@@ -245,27 +245,22 @@ const Form = () => {
             services
         };
 
-        try {
-            console.log("📤 Отправка данных:", payload);
 
-            const response = await fetch(url, {
+            console.log("📤 Отправка данных:", payload);
+            await fetch(url, {
                 method: 'POST',
+                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
             });
-
-            const text = await response.text();
-            console.log("📥 Ответ скрипта:", text);
-
-            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-
             alert("✅ Заявка отправлена в Google Таблицу!");
-        } catch (err) {
-            alert("❌ Ошибка отправки");
-            console.error("❌ Ошибка:", err);
-        }
+
+
+
+
+
     };
 
 
