@@ -222,6 +222,44 @@ const Form = () => {
         setEditAddonIndex(null);
         setIsAddingAddons(false);
     };
+    const submitToGoogleSheets = async () => {
+        const url = 'https://script.google.com/macros/s/AKfycbxQOqPccbwjQ0Gmr623dA4Il786L_MYLMjOEPeE9U3ge1hAgLAV9355OdMT3Ka756Alig/exec';
+
+        const total = customTotal !== null
+            ? Number(customTotal)
+            : services
+                .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
+                .reduce((a, b) => a + b, 0);
+
+        const payload = {
+            owner,
+            status,
+            leadName,
+            address: addressLead,
+            phone: phoneNumberLead,
+            date: dataLead,
+            city: "Нью-Йорк", // заменишь потом на реальный выбор
+            master: "Максим", // или тот, кого выбрал
+            comment: commentOrder,
+            total,
+            services
+        };
+
+        try {
+            await fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+            alert("✅ Заявка отправлена в Google Таблицу!");
+        } catch (err) {
+            alert("❌ Ошибка отправки");
+            console.error(err);
+        }
+    };
 
 
     const removeAddon = (idx) => {
@@ -745,6 +783,9 @@ const Form = () => {
                             </div>
                         )}
                     </div>
+                    <button className="btn btn-success mt-4" onClick={submitToGoogleSheets}>
+                        Отправить заявку в Google Таблицу
+                    </button>
 
                 </div>
             )}
