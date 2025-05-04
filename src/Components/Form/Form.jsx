@@ -225,7 +225,6 @@ const Form = () => {
     const submitToGoogleSheets = async () => {
         const url = 'https://script.google.com/macros/s/AKfycbxD_JIoNkQ-UFLlPmzZ6BO1CPjF2EFbjXdtN2j61py5RkTv4f8WM7ZEcr6Y6DUh4Qb2Pg/exec';
 
-
         const total = customTotal !== null
             ? Number(customTotal)
             : services
@@ -238,29 +237,37 @@ const Form = () => {
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
-            date: "2025-05-05T14:00",
-            city: "Нью-Йорк", // заменишь потом на реальный выбор
-            master: "Максим", // или тот, кого выбрал
+            date: dataLead,
+            city: "Нью-Йорк",
+            master: "Максим",
             comment: commentOrder,
             total,
             services
         };
 
         try {
+            console.log("📤 Отправка данных:", payload);
 
-            await fetch(url, {
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(payload),
             });
+
+            const text = await response.text();
+            console.log("📥 Ответ скрипта:", text);
+
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+
             alert("✅ Заявка отправлена в Google Таблицу!");
         } catch (err) {
             alert("❌ Ошибка отправки");
-            console.error(err);
+            console.error("❌ Ошибка:", err);
         }
     };
+
 
 
     const removeAddon = (idx) => {
