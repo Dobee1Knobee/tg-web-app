@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useUserByAt } from '../../hooks/findUserByAt';
 
@@ -58,8 +58,15 @@ const Form = () => {
     const { user } = useTelegram();
     const telegramUsername = user?.username?.toLowerCase() || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
+    const [owner, setOwner] = useState("");
 
-    const owner = mongoUser?.name || `@${telegramUsername || "Неизвестный"}`;
+    useEffect(() => {
+        if (mongoUser) {
+            setOwner(mongoUser.name);
+        } else if (telegramUsername) {
+            setOwner(`@${telegramUsername}`);
+        }
+    }, [mongoUser, telegramUsername]);
 
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
@@ -292,7 +299,7 @@ const Form = () => {
 
 
             <div className="mb-3">
-                <input className="form-control" placeholder={`Владелец заявки: ${owner}!!`} readOnly />
+                <input className="form-control" placeholder={`Владелец заявки: ${owner}`} readOnly />
             </div>
 
             <div className="mb-3">
