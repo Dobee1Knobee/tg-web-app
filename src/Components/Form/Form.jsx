@@ -292,7 +292,7 @@ const Form = () => {
 
 
             <div className="mb-3">
-                <input className="form-control" placeholder={`Владелец заявки: ${owner}`} readOnly />
+                <input className="form-control" placeholder={`Владелец заявки: ${owner}!!`} readOnly />
             </div>
 
             <div className="mb-3">
