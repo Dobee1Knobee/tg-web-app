@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
+import { useUserByAt } from '../../hooks/findUserByAt';
+
 import 'bootstrap/dist/css/bootstrap.min.css';
 const workTypes = [
      { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
@@ -53,8 +55,11 @@ const statusColors = {
 
 
 const Form = () => {
-    const { user } = useTelegram();
-    const owner = user?.username || "Неизвестный";
+    const { user } = useTelegram(); // от Telegram
+    const telegramUsername = user?.username?.toLowerCase(); // normalize
+    const mongoUser = useUserByAt(telegramUsername); // из Mongo
+
+    const owner = mongoUser?.name || `@${telegramUsername || "Неизвестный"}`;
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
     const [leadName, setLeadName] = useState("");
