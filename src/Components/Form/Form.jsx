@@ -55,11 +55,12 @@ const statusColors = {
 
 
 const Form = () => {
-    const { user } = useTelegram(); // от Telegram
-    const telegramUsername = user?.username?.toLowerCase(); // normalize
-    const mongoUser = useUserByAt(telegramUsername); // из Mongo
+    const { user } = useTelegram();
+    const telegramUsername = user?.username?.toLowerCase() || "devapi1";
+    const mongoUser = useUserByAt(telegramUsername);
 
     const owner = mongoUser?.name || `@${telegramUsername || "Неизвестный"}`;
+
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
     const [leadName, setLeadName] = useState("");

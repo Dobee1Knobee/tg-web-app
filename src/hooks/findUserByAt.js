@@ -5,7 +5,7 @@ export const useUserByAt = (at) => {
 
     useEffect(() => {
         if (!at) return;
-        fetch(`/api/user?at=${at}`)
+        fetch(`http://localhost:3000/api/user?at=${at}`)
             .then((res) => res.ok ? res.json() : null)
             .then(setUser)
             .catch(() => setUser(null));
