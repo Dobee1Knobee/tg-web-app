@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useUserByAt } from '../../hooks/findUserByAt';
+import { useMastersByTeam } from '../../hooks/findMastersByTeam';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 const workTypes = [
@@ -39,6 +40,7 @@ const materialsList = [
 ];
 
 
+
 const statusColors = {
     "В работе": "#ffff00",
     "Другой регион": "#00e5ff",
@@ -60,7 +62,7 @@ const Form = () => {
     const mongoUser = useUserByAt(telegramUsername);
     const [team, setTeam] = useState("");
     const [managerId, setManagerId] = useState("");
-
+    const masters = useMastersByTeam(team); // ⬅️ на верхнем уровне компонента
 
     const [owner, setOwner] = useState("");
 
@@ -115,9 +117,10 @@ const Form = () => {
             case "B": return 'https://script.google.com/macros/s/AKfycbycbl3EqNQ79LbldMmx8cVsE3b5OirW1ka2SMRJ1oxH4dxJ89KRCIa6cAbQoYECmEpR/exec';
             case "C": return 'https://script.google.com/macros/s/AKfycbwAfuSryE-2kFASuOGbvEdq2X2fL08LYzQphEK4asXuOLv9LgbF2ozZhx7t3byvbOQS/exec';
             case "W":return 'https://script.google.com/macros/s/AKfycbwmRdehNDZLY1IMdNnQw5fJNpZH6Bj4H_CyO7axO1VXFt7llliw9vuAtdqlvHWz-ag/exec';
-            default: return 'https://script.google.com/macros/s/AKfycbwp0Kfg6LJKMQ-X8hQlbX8if8wVj8fuIelqR6Ta_VYVfMP0YUXhY1d1dx6eexTvwOPkLg/exec';
+            default: return 'https://script.google.com/macros/s/AKfycbzqhK1xAvLOGCyrEvaDb1mwizPVSFdXj_LmbpztQbmLBsrsM19khAdSpqA3AxpTvy9jgw/exec';
         }
     };
+
     const handleServiceChange = (e) => {
         setCurrentService({ ...currentService, [e.target.name]: e.target.value });
     };
@@ -402,12 +405,13 @@ const Form = () => {
             </div>
             <div className="mb-3">
                 {/*подтягивать по манагеру //TODO*/}
-                <select className={"form-select"}>
-                    <option>Мастер</option>
-                    <option>Максим</option>
-                    <option>Андрей</option>
-                    <option>Иван</option>
-                    <option>Антон</option>
+                <select className="form-select">
+                    <option value="">Выберите мастера</option>
+                    {masters?.map((m, i) => (
+                        <option key={i} value={m.name}>
+                            {m.name} ({m.city})
+                        </option>
+                    ))}
                 </select>
             </div>
             <div className="mb-3">
