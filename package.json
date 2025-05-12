@@ -8,6 +8,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "bootstrap": "^5.3.5",
+    "express": "^4.21.2",
     "mongoose": "^8.14.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -19,6 +20,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "start:prod": "node server.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

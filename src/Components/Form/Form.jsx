@@ -58,11 +58,18 @@ const Form = () => {
     const { user } = useTelegram();
     const telegramUsername = user?.username?.toLowerCase() || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
+    const [team, setTeam] = useState("");
+    const [managerId, setManagerId] = useState("");
+
+
     const [owner, setOwner] = useState("");
 
     useEffect(() => {
         if (mongoUser) {
             setOwner(mongoUser.name);
+            setTeam(mongoUser.team);
+            setManagerId(mongoUser.manager_id); // добавь стейт manager_id
+
         } else if (telegramUsername) {
             setOwner(`@${telegramUsername}`);
         }
@@ -102,7 +109,15 @@ const Form = () => {
     const [editIndex, setEditIndex] = useState(null);
     const [isAddingMaterials, setIsAddingMaterials] = useState(false);
     const handleStatusChange = (e) => setStatus(e.target.value);
-
+    const getSheetUrlByTeam = (team) => {
+        switch (team) {
+            case "A": return 'https://script.google.com/macros/s/AKfycbyxqdAe-K0NTxKG2vl9oAtSb-t5mc6cb0QjyQRDxwbO1tJFAVCuv2ciMgFxl7ytKCuOag/exec';
+            case "B": return 'https://script.google.com/macros/s/AKfycbycbl3EqNQ79LbldMmx8cVsE3b5OirW1ka2SMRJ1oxH4dxJ89KRCIa6cAbQoYECmEpR/exec';
+            case "C": return 'https://script.google.com/macros/s/AKfycbwAfuSryE-2kFASuOGbvEdq2X2fL08LYzQphEK4asXuOLv9LgbF2ozZhx7t3byvbOQS/exec';
+            case "W":return 'https://script.google.com/macros/s/AKfycbwmRdehNDZLY1IMdNnQw5fJNpZH6Bj4H_CyO7axO1VXFt7llliw9vuAtdqlvHWz-ag/exec';
+            default: return 'https://script.google.com/macros/s/AKfycbwp0Kfg6LJKMQ-X8hQlbX8if8wVj8fuIelqR6Ta_VYVfMP0YUXhY1d1dx6eexTvwOPkLg/exec';
+        }
+    };
     const handleServiceChange = (e) => {
         setCurrentService({ ...currentService, [e.target.name]: e.target.value });
     };
@@ -236,7 +251,8 @@ const Form = () => {
         setIsAddingAddons(false);
     };
     const submitToGoogleSheets = async () => {
-        const url = 'https://script.google.com/macros/s/AKfycbyIll8IoiaVwT5cG6LxOdIIk_JQRgpmhTPev4jYXubdDdRv2PJW4mY8hFeapi46WNH9lA/exec';
+        const url = getSheetUrlByTeam(team); // ✅ Подставляем нужную ссылку
+        const leadId = team && managerId ? `${team}${managerId}` : "N/A";
 
         const total = customTotal !== null
             ? Number(customTotal)
@@ -245,6 +261,7 @@ const Form = () => {
                 .reduce((a, b) => a + b, 0);
 
         const payload = {
+            leadId,
             owner,
             status,
             leadName,
@@ -257,24 +274,21 @@ const Form = () => {
             total,
             services
         };
-
-
-            console.log("📤 Отправка данных:", payload);
-            await fetch(url, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            });
-            alert("✅ Заявка отправлена в Google Таблицу!");
-
-
-
-
-
+        console.log("LEAD ID:", leadId);
+        console.log("team:", team);
+        console.log("managerId:", managerId);
+        console.log("📤 Отправка данных:", payload);
+        await fetch(url, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        alert("✅ Заявка отправлена в Google Таблицу!");
     };
+
 
 
 
@@ -352,12 +366,29 @@ const Form = () => {
                 />
             </div>
             <div className="mb-3">
-                <input
-                    className="form-control"
-                    type={"datetime-local"}
-                    value={dataLead}
-                    onChange={(e) => setDataLead(e.target.value)}
-                />
+                <div className="d-flex gap-2 mb-3">
+                    <input
+                        className="form-control"
+                        type="date"
+                        value={dataLead.split("T")[0]}
+                        onChange={(e) => setDataLead(prev => {
+                            const time = prev.split("T")[1] || "12:00";
+                            return `${e.target.value}T${time}`;
+                        })}
+                    />
+                    <input
+                        className="form-control"
+                        type="time"
+                        value={dataLead.split("T")[1] || "12:00"}
+                        onChange={(e) => setDataLead(prev => {
+                            const date = prev.split("T")[0] || new Date().toISOString().split("T")[0];
+                            return `${date}T${e.target.value}`;
+                        })}
+                    />
+
+
+                </div>
+
             </div>
             <div className="mb-3">
                 {/*подтягивать по манагеру //TODO*/}
@@ -388,11 +419,127 @@ const Form = () => {
                     onChange={(e) => setCommentOrder(e.target.value)}
                 />
             </div>
+            {services.length > 0 && (
+                <div className="mt-4">
+                    <h4>Добавленные услуги:</h4>
+                    <ul className="list-group">
+                        {services.map((s, i) => (
+                            <li
+                                key={i}
+                                className="list-group-item d-flex justify-content-between align-items-center"
+                            >
+                                <span>
+                                    📺  Диагональ: <b>{s.diagonal}"</b> <br/>
+                                    🔢  Количество: <b>{s.count}</b> <br/>
+                                    🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label}</b><br/>
+                                    { s.mountType && (
+                                        <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b> — 💲{s.mountPrice}</div>
+                                    )}
+                                    {s.price && <>💵 Стоимость  <b>{s.price} $</b></>}
+                                    {s.message && <div>📝 Комментарий: {s.message}</div>}
+                                    {s.materials?.length > 0 && (
+                                        <div>
+                                            📦 Материалы:
+                                            <ul className="mb-0">
+                                                {s.materials.map((mat, idx) => (
+                                                    <li key={idx}>
+                                                        {mat.label} × {mat.count} — ${mat.price * mat.count}
+                                                    </li>
 
+                                                ))}
+                                            </ul>
+
+                                        </div>
+                                    )}
+                                    {s.addons?.length > 0 && (
+                                        <div>
+                                            🛠️ Дополнительные услуги:
+                                            <ul className="mb-0">
+                                                {s.addons.map((mat, idx) => (
+                                                    <li key={idx}>
+                                                        {mat.label} × {mat.count} — ${mat.price * mat.count}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+
+                                </span>
+                                <div className="btn-group">
+                                    <button
+                                        className="btn btn-sm btn-outline-secondary"
+                                        onClick={() => editService(i)}
+                                    >
+                                        ✏️
+                                    </button>
+                                    <button
+                                        className="btn btn-sm btn-outline-danger"
+                                        onClick={() => removeService(i)}
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+
+                    {/* Общая сумма */}
+                    <div className="text-end mt-3">
+                        <h5>
+                            💰 Общая сумма:{" "}
+                            <b>
+                                {customTotal !== null
+                                    ? `${customTotal} $`
+                                    : `${services
+                                        .map(s => ((s.price + s.mountPrice ) * s.count + (s.materialPrice||0) + (s.addonsPrice||0)))
+                                        .reduce((a, b) => a + b, 0)
+                                        .toLocaleString()} $`}
+                            </b>
+                        </h5>
+
+                        {!isEditingTotal ? (
+                            <button className="btn btn-sm btn-outline-secondary mt-2" onClick={() => setIsEditingTotal(true)}>
+                                Изменить вручную
+                            </button>
+                        ) : (
+                            <div className="mt-2 d-flex flex-row gap-2 justify-content-end">
+                                <input
+                                    type="number"
+                                    className="form-control"
+                                    placeholder="Сумма"
+                                    style={{ width: "150px", textAlign: "center" }}
+                                    value={customTotal || ""}
+                                    onChange={(e) => setCustomTotal(e.target.value)}
+                                />
+                                <button className="btn btn-sm btn-outline-danger" onClick={() => {
+                                    setCustomTotal(null);
+                                    setIsEditingTotal(false);
+                                }}>
+                                    Сбросить
+                                </button>
+                                <button className="btn btn-sm btn-outline-success" onClick={() => {
+                                    setIsEditingTotal(false);
+                                }}>
+                                    Подтвердить
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+
+                </div>
+            )}
             {!isAdding && (
-                <button className="btn btn-primary" onClick={startAdding}>
-                    Добавить услугу
-                </button>
+                <div >
+                    <button className="btn btn-primary " style={{marginRight:"2vh"}} onClick={startAdding}>
+                        Добавить услугу
+                    </button>
+                    <button className="btn btn-success " onClick={submitToGoogleSheets}>
+                        Отправить заявку в Google Таблицу
+                    </button>
+                </div>
+
             )}
             {isAdding && (
                 <div className="card my-3 p-3">
@@ -692,119 +839,7 @@ const Form = () => {
                 </div>
             )}
 
-            {services.length > 0 && (
-                <div className="mt-4">
-                    <h4>Добавленные услуги:</h4>
-                    <ul className="list-group">
-                        {services.map((s, i) => (
-                            <li
-                                key={i}
-                                className="list-group-item d-flex justify-content-between align-items-center"
-                            >
-                                <span>
-                                    📺  Диагональ: <b>{s.diagonal}"</b> <br/>
-                                    🔢  Количество: <b>{s.count}</b> <br/>
-                                    🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label}</b><br/>
-                                    { s.mountType && (
-                                        <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b> — 💲{s.mountPrice}</div>
-                                    )}
-                                    {s.price && <>💵 Стоимость  <b>{s.price} $</b></>}
-                                    {s.message && <div>📝 Комментарий: {s.message}</div>}
-                                    {s.materials?.length > 0 && (
-                                        <div>
-                                            📦 Материалы:
-                                            <ul className="mb-0">
-                                                {s.materials.map((mat, idx) => (
-                                                    <li key={idx}>
-                                                        {mat.label} × {mat.count} — ${mat.price * mat.count}
-                                                    </li>
 
-                                                ))}
-                                            </ul>
-
-                                        </div>
-                                    )}
-                                    {s.addons?.length > 0 && (
-                                        <div>
-                                            🛠️ Дополнительные услуги:
-                                            <ul className="mb-0">
-                                                {s.addons.map((mat, idx) => (
-                                                    <li key={idx}>
-                                                        {mat.label} × {mat.count} — ${mat.price * mat.count}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    )}
-
-
-                                </span>
-                                <div className="btn-group">
-                                    <button
-                                        className="btn btn-sm btn-outline-secondary"
-                                        onClick={() => editService(i)}
-                                    >
-                                        ✏️
-                                    </button>
-                                    <button
-                                        className="btn btn-sm btn-outline-danger"
-                                        onClick={() => removeService(i)}
-                                    >
-                                        🗑️
-                                    </button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-
-                    {/* Общая сумма */}
-                    <div className="text-end mt-3">
-                        <h5>
-                            💰 Общая сумма:{" "}
-                            <b>
-                                {customTotal !== null
-                                    ? `${customTotal} $`
-                                    : `${services
-                                        .map(s => ((s.price + s.mountPrice ) * s.count + (s.materialPrice||0) + (s.addonsPrice||0)))
-                                        .reduce((a, b) => a + b, 0)
-                                        .toLocaleString()} $`}
-                            </b>
-                        </h5>
-
-                        {!isEditingTotal ? (
-                            <button className="btn btn-sm btn-outline-secondary mt-2" onClick={() => setIsEditingTotal(true)}>
-                                Изменить вручную
-                            </button>
-                        ) : (
-                            <div className="mt-2 d-flex flex-row gap-2 justify-content-end">
-                                <input
-                                    type="number"
-                                    className="form-control"
-                                    placeholder="Сумма"
-                                    style={{ width: "150px", textAlign: "center" }}
-                                    value={customTotal || ""}
-                                    onChange={(e) => setCustomTotal(e.target.value)}
-                                />
-                                <button className="btn btn-sm btn-outline-danger" onClick={() => {
-                                    setCustomTotal(null);
-                                    setIsEditingTotal(false);
-                                }}>
-                                    Сбросить
-                                </button>
-                                <button className="btn btn-sm btn-outline-success" onClick={() => {
-                                    setIsEditingTotal(false);
-                                }}>
-                                    Подтвердить
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                    <button className="btn btn-success mt-4" onClick={submitToGoogleSheets}>
-                        Отправить заявку в Google Таблицу
-                    </button>
-
-                </div>
-            )}
         </div>
     );
 };
