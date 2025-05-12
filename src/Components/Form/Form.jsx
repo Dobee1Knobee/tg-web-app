@@ -91,10 +91,11 @@ const Form = () => {
     const [selectedAddon, setSelectedAddon] = useState(null);
     const [selectedAddMaterials, setSelectedAddMaterials] = useState(null);
     const [addMaterialsCount, setAddMaterialsCount] = useState(1);
-
+    const [city, setCity] = useState("");
     const [addonCount, setAddonCount] = useState(1);
     const [dataLead, setDataLead] = useState("");
     const [commentOrder,setCommentOrder] = useState("");
+    const [selectedMaster, setSelectedMaster] = useState("");
     const [currentService, setCurrentService] = useState({
         diagonal: "",
         count: "1",
@@ -271,8 +272,8 @@ const Form = () => {
             address: addressLead,
             phone: phoneNumberLead,
             date: dataLead,
-            city: "Нью-Йорк",
-            master: "Максим",
+            city: city,
+            master: selectedMaster,
             comment: commentOrder,
             total,
             services
@@ -393,19 +394,22 @@ const Form = () => {
                 </div>
 
             </div>
+
             <div className="mb-3">
-                {/*подтягивать по манагеру //TODO*/}
-                <select className={"form-select"}>
-                    <option>Город</option>
-                    <option>New york</option>
-                    <option>Город</option>
-                    <option>Город</option>
-                    <option>Город</option>
-                </select>
-            </div>
-            <div className="mb-3">
-                {/*подтягивать по манагеру //TODO*/}
-                <select className="form-select">
+                <select
+                    className="form-select"
+                    value={selectedMaster}
+                    onChange={(e) => {
+                        const name = e.target.value;
+                        setSelectedMaster(name);
+
+                        const matched = masters.find((m) => m.name === name);
+                        if (matched) {
+                            setCity(matched.city);
+
+                        }
+                    }}
+                >
                     <option value="">Выберите мастера</option>
                     {masters?.map((m, i) => (
                         <option key={i} value={m.name}>
@@ -413,6 +417,17 @@ const Form = () => {
                         </option>
                     ))}
                 </select>
+
+            </div>
+            <div className="mb-3">
+                {/*подтягивать по манагеру //TODO*/}
+                <input
+                    className="form-control"
+                    type="text"
+                    placeholder="Город"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                />
             </div>
             <div className="mb-3">
                 <input
