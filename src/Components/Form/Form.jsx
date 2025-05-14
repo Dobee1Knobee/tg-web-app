@@ -300,6 +300,7 @@ const Form = () => {
         setEditAddonIndex(null);
         setIsAddingAddons(false);
     };
+
     const submitToGoogleSheets = async () => {
         const url = getSheetUrlByTeam(team); // ✅ Подставляем нужную ссылку
         const leadId = team && managerId ? `${team}${managerId}` : "N/A";
@@ -775,15 +776,15 @@ const Form = () => {
                                     </div>
                                 )}
 
-                                <button
-                                    className="btn btn-sm btn-outline-success"
-                                    onClick={() => {
-                                        saveMount();
-                                        setIsAddingMount(false);
-                                    }}
-                                >
-                                    💾 Сохранить навес
-                                </button>
+                                {/*<button*/}
+                                {/*    className="btn btn-sm btn-outline-success"*/}
+                                {/*    onClick={() => {*/}
+                                {/*        saveMount();*/}
+                                {/*        setIsAddingMount(false);*/}
+                                {/*    }}*/}
+                                {/*>*/}
+                                {/*    💾 Сохранить навес*/}
+                                {/*</button>*/}
 
                             </div>
 
