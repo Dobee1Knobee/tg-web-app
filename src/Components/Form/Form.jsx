@@ -57,6 +57,38 @@ const statusColors = {
 
 
 const Form = () => {
+    const [displayValue, setDisplayValue] = useState('');
+    const [isWeOwnerMount, setIsWeOwnerMount] = useState(false);
+    const [mountData,setMountData] = useState({});
+    const formatPhoneNumber = (value) => {
+        // Удаляем всё, кроме цифр
+        const digits = value.replace(/\D/g, '');
+
+        // Убираем ведущую 1, если ввели вручную
+        const cleaned = digits.startsWith('1') ? digits.slice(1) : digits;
+
+        let formatted = '+1 ';
+        for (let i = 0; i < cleaned.length; i++) {
+            if (i === 0) formatted += '(';
+            if (i === 3) formatted += ') ';
+            if (i === 6) formatted += '-';
+            formatted += cleaned[i];
+        }
+
+        return formatted;
+    };
+
+    const handleChange = (e) => {
+        const input = e.target.value;
+        const digits = input.replace(/\D/g, '');
+
+        // Очищенный номер без +1
+        const cleaned = digits.startsWith('1') ? digits.slice(1) : digits;
+
+        setPhoneNumberLead(cleaned); // сюда только цифры без 1
+        setDisplayValue(formatPhoneNumber(input)); // сюда красиво отформатированное
+    };
+
     const { user } = useTelegram();
     const telegramUsername = user?.username?.toLowerCase() || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
@@ -111,6 +143,8 @@ const Form = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [editIndex, setEditIndex] = useState(null);
     const [isAddingMaterials, setIsAddingMaterials] = useState(false);
+    const [isAddingMount, setIsAddingMount] = useState(false);
+
     const handleStatusChange = (e) => setStatus(e.target.value);
     const getSheetUrlByTeam = (team) => {
         switch (team) {
@@ -167,6 +201,9 @@ const Form = () => {
         setIsEditingTotal(false);
         setEditIndex(null);
     };
+    const saveDiagonal = () => {
+
+    }
     const saveMaterial = () => {
         if (!selectedAddMaterials) return;
 
@@ -229,6 +266,15 @@ const Form = () => {
             materialPrice: currentService.materialPrice - removed.price * removed.count,
         });
     };
+    const saveMount = () => {
+        if (!mountData) return;
+        setCurrentService({
+            ...currentService,
+            mountData: { ...mountData },
+        });
+        setMountData(null);
+        setIsAddingMount(false);
+    };
     const saveAddon = () => {
         if (!selectedAddon) return;
 
@@ -263,6 +309,7 @@ const Form = () => {
             : services
                 .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
                 .reduce((a, b) => a + b, 0);
+        const formattedDate = dataLead.replace("T", " ");
 
         const payload = {
             leadId,
@@ -271,7 +318,7 @@ const Form = () => {
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
-            date: dataLead,
+            date: formattedDate,
             city: city,
             master: selectedMaster,
             comment: commentOrder,
@@ -363,10 +410,13 @@ const Form = () => {
             <div className="mb-3">
                 <input
                     className="form-control"
-                    type={"text"}
+                    type="text"
                     placeholder="Номер"
-                    value={phoneNumberLead}
-                    onChange={(e) => setPhoneNumberLead(e.target.value)}
+                    value={displayValue}
+                    onChange={handleChange}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel"
                 />
             </div>
             <div className="mb-3">
@@ -561,7 +611,7 @@ const Form = () => {
 
             )}
             {isAdding && (
-                <div className="card my-3 p-3">
+                <div className="card my-3 p-3 ">
                     <div className=" p-3 position-relative">
                         <button
                             type="button"
@@ -574,272 +624,355 @@ const Form = () => {
                         {/* Здесь остальной контент карточки */}
                     </div>
 
-                    <div className="mb-3 d-flex flex-row gap-3">
-
-                        <input
-                            className="form-control"
-                            name="diagonal"
-                            value={currentService.diagonal}
-                            onChange={(e) => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                const num = Number(val);
-
-                                let autoType = currentService.workType;
-                                let autoPrice = currentService.price;
-
-                                if (num <= 31) {
-                                    autoType = "tv_std";
-                                    autoPrice = 69;
-                                    setShowTechChoice(false)
-                                } else if (num >= 32 && num <= 59) {
-                                    autoType = "tv_std";
-                                    autoPrice = 129;
-                                    setShowTechChoice(false)
-                                } else if (num >= 60) {
-
-                                    setShowTechChoice(true);
-                                }
-
-                                setCurrentService({
-                                    ...currentService,
-                                    diagonal: val,
-                                    workType: autoType,
-                                    price: autoPrice,
-                                });
-                            }}
-                            type="text"
-                            placeholder="Диагональ"
-                        />
-
-                        <input
-                            className="form-control"
-                            name={"count"}
-                            type="number"
-                            min={1}
-                            placeholder={"Количество"}
-                            value={currentService.count}
-                            onChange={(e) =>
-                                setCurrentService({
-                                    ...currentService,
-                                    count: e.target.value.replace(/\D/g, ''),
-                                })
-                            }
-                            style={{ width: "30%", textAlign: "center" }}
-                        />
-                    </div>
-                    {showTechChoice && (
-                        <div className="mb-3 d-flex flex-row gap-3 justify-content-center">
-                            <button
-                                className="btn btn-outline-primary"
-                                onClick={() => {
-                                    setCurrentService({
-                                        ...currentService,
-                                        workType: "tv_big",
-                                        price: 149,
-                                    });
-                                    setShowTechChoice(false);
-                                }}
-                            >
-                                Один техник ($149)
-                            </button>
-                            <button
-                                className="btn btn-outline-primary"
-                                onClick={() => {
-                                    setCurrentService({
-                                        ...currentService,
-                                        workType: "tv_big2",
-                                        price: 189,
-                                    });
-                                    setShowTechChoice(false);
-                                }}
-                            >
-                                Два техника ($189)
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="mb-3 d-flex flex-row gap-3">
-
-                        <div className="form-control" style={{ backgroundColor: "#f8f9fa" }}>
-                            {workTypes.find(w => w.value === currentService.workType)?.label || "—"}
-                        </div>
 
 
-                        <div className="form-control" style={{ backgroundColor: "#f8f9fa",width:"30%",textAlign: "center" }}>
-                            {currentService.price + "$"}
-                        </div>
-                    </div>
+                    <div className="d-flex flex-column  gap-3 mb-3 align-items-stretch justify-content-center">
+                        <button className={"btn btn-info"} onClick={e => setIsAddingMount(true)}>➕ Навес</button>
+                        {isAddingMount && (
+                            <div className="card p-3 mb-3 d-flex flex-row gap-3 flex-column text-center">
+                                <div className=" p-3 position-relative">
+                                    <button
+                                        type="button"
+                                        className="btn-close position-absolute top-0 end-0 "
+                                        aria-label="Close"
+                                        onClick={() => setIsAddingMount(false)} // закрыть форму добавления
+                                    ></button>
+                                </div>
+                                <div className={"d-flex flex-row gap-3"}>
 
-                    <div className="d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center">
-                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>Доп материалы</button>
-                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>Доп услуги</button>
-                        <select
-                            className="form-select"
-                            name="mountType"
-                            value={currentService.mountType}
-                            onChange={(e) => {
-                                const value = e.target.value;
+                                    <input
+                                        className="form-control"
+                                        name="diagonal"
+                                        value={currentService.diagonal}
+                                        onChange={(e) => {
+                                            const val = e.target.value.replace(/\D/g, '');
+                                            const num = Number(val);
 
-                                const selectedMount = mount.find(m => m.value === value);
-                                setCurrentService({
-                                    ...currentService,
-                                    mountType: value,
-                                    mountPrice: selectedMount?.price  || 0,
-                                });
+                                            let autoType = currentService.workType;
+                                            let autoPrice = currentService.price;
 
-                            }}
-                        >
-                            <option value="">Тип крепления</option>
-                            <option value="fixed_mount">Fixed — $39</option>
-                            <option value="titling_mount">Tilting — $49</option>
-                            <option value="full_motion">Full motion — $69</option>
-                        </select>
+                                            if (num <= 31) {
+                                                autoType = "tv_std";
+                                                autoPrice = 69;
+                                                setShowTechChoice(false)
+                                            } else if (num >= 32 && num <= 59) {
+                                                autoType = "tv_std";
+                                                autoPrice = 129;
+                                                setShowTechChoice(false)
+                                            } else if (num >= 60) {
 
-                    </div>
-                    {isAddingAddons && (
-                        <div className=" card p-3 text-center mb-3">
-                            <div className=" p-3 position-relative">
+                                                setShowTechChoice(true);
+                                            }
+
+                                            setCurrentService({
+                                                ...currentService,
+                                                diagonal: val,
+                                                workType: autoType,
+                                                price: autoPrice,
+                                            });
+                                        }}
+                                        type="text"
+                                        placeholder="Диагональ"
+                                    />
+
+                                    <input
+                                        className="form-control"
+                                        name={"count"}
+                                        type="number"
+                                        min={1}
+                                        placeholder={"Количество"}
+                                        value={currentService.count}
+                                        onChange={(e) =>
+                                            setCurrentService({
+                                                ...currentService,
+                                                count: e.target.value.replace(/\D/g, ''),
+                                            })
+                                        }
+                                        style={{ width: "30%", textAlign: "center" }}
+                                    />
+                                </div>
+                                {showTechChoice && (
+
+                                    <div className="mb-3 d-flex flex-row gap-3 justify-content-center">
+                                        <button
+                                            className="btn btn-outline-primary"
+                                            onClick={() => {
+                                                setCurrentService({
+                                                    ...currentService,
+                                                    workType: "tv_big",
+                                                    price: 149,
+                                                });
+                                                setShowTechChoice(false);
+                                            }}
+                                        >
+                                            Один техник ($149)
+                                        </button>
+                                        <button
+                                            className="btn btn-outline-primary"
+                                            onClick={() => {
+                                                setCurrentService({
+                                                    ...currentService,
+                                                    workType: "tv_big2",
+                                                    price: 189,
+                                                });
+                                                setShowTechChoice(false);
+                                            }}
+                                        >
+                                            Два техника ($189)
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="card d-flex flex-column justify-content-center align-items-center">
+                                    <p className="mb-0 me-2 text-black" style={{ fontSize: "2vh" }}>Маунт наш?</p>
+                                    <div className="m-2">
+                                        <button
+                                            className={`btn ${!isWeOwnerMount ? 'btn-success' : 'btn-outline-success'} ` } style={{marginRight:"1vh"}}
+                                            onClick={() => setIsWeOwnerMount(false)}
+                                        >
+                                            Да
+                                        </button>
+                                        <button
+                                            className={`btn ${isWeOwnerMount ? 'btn-danger' : 'btn-outline-danger'}`}
+                                            style={{ marginLeft: "1vh" }}
+                                            onClick={() => {
+                                                setIsWeOwnerMount(true);
+                                                setCurrentService({
+                                                    ...currentService,
+                                                    mountType: '',
+                                                    mountPrice: 0
+                                                });
+                                            }}
+                                        >
+                                            Нет
+                                        </button>
+
+                                    </div>
+                                </div>
+                                {!isWeOwnerMount && (
+                                    <div>
+
+                                        <select
+                                            className="form-select"
+                                            name="mountType"
+                                            value={currentService.mountType}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+
+                                                const selectedMount = mount.find(m => m.value === value);
+                                                setCurrentService({
+                                                    ...currentService,
+                                                    mountType: value,
+                                                    mountPrice: selectedMount?.price  || 0,
+                                                });
+
+                                            }}
+                                        >
+                                            <option value="">Тип крепления</option>
+                                            <option value="fixed_mount">Fixed — $39</option>
+                                            <option value="titling_mount">Tilting — $49</option>
+                                            <option value="full_motion">Full motion — $69</option>
+                                        </select>
+                                    </div>
+                                )}
+
                                 <button
-                                    type="button"
-                                    className="btn-close position-absolute top-0 end-0 "
-                                    aria-label="Close"
-                                    onClick={() => setIsAddingAddons(false)} // закрыть форму добавления
-                                ></button>
-                            </div>
-                            <h5>Выберите услуги</h5>
-                            <div className={"d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
-                                <select
-                                    className="form-select"
-                                    value={selectedAddon?.value || ''}
-
-                                    onChange={(e) => {
-                                        const addon = additionalServices.find(m => m.value === e.target.value);
-                                        setSelectedAddon(addon || null);
+                                    className="btn btn-sm btn-outline-success"
+                                    onClick={() => {
+                                        saveMount();
+                                        setIsAddingMount(false);
                                     }}
                                 >
-                                    <option value="">Выберите услугу</option>
-                                    {additionalServices.map((m, i) => (
-                                        <option key={i} value={m.value}>{m.label} — {m.price}$</option>
-                                    ))}
-                                </select>
-                                <input
-                                    className="form-control"
-                                    type="number"
+                                    💾 Сохранить навес
+                                </button>
 
-                                    value={addonCount}
-                                    min={1}
-                                    onChange={(e) => setAddonCount(Number(e.target.value))}
-                                    style={{ width: "20%", textAlign: "center" }}
-                                />
                             </div>
-                            <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={saveAddon}
-                            >
-                                {editAddonIndex !== null ? "💾 Сохранить" : "➕ Добавить"}
-                            </button>
 
-                        </div>
+
+                            )}
+                        {currentService.mountData?.length > 0 && (
+                            <div className="mb-3">
+                                <h6>🛠️ Дополнительные услуги:</h6>
+                                <ul className="list-group">
+                                    {currentService.addons.map((mat, idx) => (
+                                        <li key={idx} className="list-group-item d-flex justify-content-between">
+                                            <span>{mat.label} × {mat.count}</span>
+                                            <span>{mat.price * mat.count} $</span>
+                                            <div className="btn-group">
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => editAddon(idx)}    // ← тут
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => removeAddon(idx)}  // ← и тут
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         )}
-                    {isAddingMaterials && (
-                        <div className="card p-3 text-center mb-3">
-                            <div className="p-3 position-relative">
+
+                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>➕ Услуги</button>
+                        {isAddingAddons && (
+                            <div className=" card p-3 text-center mb-3">
+                                <div className=" p-3 position-relative">
+                                    <button
+                                        type="button"
+                                        className="btn-close position-absolute top-0 end-0 "
+                                        aria-label="Close"
+                                        onClick={() => setIsAddingAddons(false)} // закрыть форму добавления
+                                    ></button>
+                                </div>
+                                <h5>Выберите услуги</h5>
+                                <div className={"d-flex flex-row flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
+                                    <select
+                                        className="form-select"
+                                        value={selectedAddon?.value || ''}
+
+                                        onChange={(e) => {
+                                            const addon = additionalServices.find(m => m.value === e.target.value);
+                                            setSelectedAddon(addon || null);
+                                        }}
+                                    >
+                                        <option value="">Выберите услугу</option>
+                                        {additionalServices.map((m, i) => (
+                                            <option key={i} value={m.value}>{m.label} — {m.price}$</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        className="form-control"
+                                        type="number"
+
+                                        value={addonCount}
+                                        min={1}
+                                        onChange={(e) => setAddonCount(Number(e.target.value))}
+                                        style={{ width: "20%", textAlign: "center" }}
+                                    />
+                                </div>
                                 <button
-                                    type="button"
-                                    className="btn-close position-absolute top-0 end-0"
-                                    aria-label="Close"
-                                    onClick={handleCloseMaterialEdit}
-                                ></button>
-                            </div>
-                            <h5>{editAddonMaterialIndex !== null ? "Редактировать материал" : "Добавить материал"}</h5>
-                            <div className={"d-flex flex-column flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
-                                <select
-                                    className="form-select"
-                                    value={selectedAddMaterials?.value || ''}
-                                    onChange={(e) => {
-                                        const mat = materialsList.find(m => m.value === e.target.value);
-                                        setSelectedAddMaterials(mat);
-                                    }}
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={saveAddon}
                                 >
-                                    <option value="">Выберите материал</option>
-                                    {materialsList.map((m, i) => (
-                                        <option key={i} value={m.value}>{m.label} — {m.price}$</option>
-                                    ))}
-                                </select>
-                                <input
-                                    className="form-control"
-                                    type="number"
-                                    value={addMaterialsCount}
-                                    min={1}
-                                    onChange={(e) => setAddMaterialsCount(Number(e.target.value))}
-                                    style={{ width: "20%", textAlign: "center" }}
-                                />
+                                    💾 Сохранить
+                                </button>
+
                             </div>
-                            <button
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={saveMaterial}
-                            >
-                                {editAddonMaterialIndex !== null ? "💾 Сохранить" : "➕ Добавить"}
-                            </button>
-                        </div>
-                    )}
+                        )}
+
+                        {currentService.addons?.length > 0 && (
+                            <div className="mb-3">
+                                <h6>🛠️ Дополнительные услуги:</h6>
+                                <ul className="list-group">
+                                    {currentService.addons.map((mat, idx) => (
+                                        <li key={idx} className="list-group-item d-flex justify-content-between">
+                                            <span>{mat.label} × {mat.count}</span>
+                                            <span>{mat.price * mat.count} $</span>
+                                            <div className="btn-group">
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => editAddon(idx)}    // ← тут
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => removeAddon(idx)}  // ← и тут
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>➕ Материалы</button>
+                        {isAddingMaterials && (
+                            <div className="card p-3 text-center mb-3">
+                                <div className="p-3 position-relative">
+                                    <button
+                                        type="button"
+                                        className="btn-close position-absolute top-0 end-0"
+                                        aria-label="Close"
+                                        onClick={handleCloseMaterialEdit}
+                                    ></button>
+                                </div>
+                                <h5>{editAddonMaterialIndex !== null ? "Редактировать материал" : "Добавить материал"}</h5>
+                                <div className={"d-flex flex-row flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
+                                    <select
+                                        className="form-select"
+                                        value={selectedAddMaterials?.value || ''}
+                                        onChange={(e) => {
+                                            const mat = materialsList.find(m => m.value === e.target.value);
+                                            setSelectedAddMaterials(mat);
+                                        }}
+                                    >
+                                        <option value="">Выберите материал</option>
+                                        {materialsList.map((m, i) => (
+                                            <option key={i} value={m.value}>{m.label} — {m.price}$</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        className="form-control"
+                                        type="number"
+                                        value={addMaterialsCount}
+                                        min={1}
+                                        onChange={(e) => setAddMaterialsCount(Number(e.target.value))}
+                                        style={{ width: "20%", textAlign: "center" }}
+                                    />
+                                </div>
+                                <button
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={saveMaterial}
+                                >
+                                    💾 Сохранить
+                                </button>
+                            </div>
+                        )}
+                        {currentService.mountData && Object.keys(currentService.mountData).length > 0 && (
+                            <div className="mb-3">
+                                <h6>📦 Материалы:</h6>
+                                <ul className="list-group">
+                                    {currentService.mountData.map((mat, idx) => (
+                                        <li key={idx} className="list-group-item d-flex justify-content-between">
+                                            <span>{mat.label} × {mat.count}</span>
+                                            <span>{mat.price * mat.count} $</span>
+                                            <div className="btn-group">
+                                                <button
+                                                    className="btn btn-sm btn-outline-secondary"
+                                                    onClick={() => editMaterials(idx)}
+                                                >
+                                                    ✏️
+                                                </button>
+                                                <button
+                                                    className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => removeMaterial(idx)}
+                                                >
+                                                    🗑️
+                                                </button>
+
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
 
 
-                    {currentService.addons?.length > 0 && (
-                        <div className="mb-3">
-                            <h6>🛠️ Дополнительные услуги:</h6>
-                            <ul className="list-group">
-                                {currentService.addons.map((mat, idx) => (
-                                    <li key={idx} className="list-group-item d-flex justify-content-between">
-                                        <span>{mat.label} × {mat.count}</span>
-                                        <span>{mat.price * mat.count} $</span>
-                                        <div className="btn-group">
-                                            <button
-                                                className="btn btn-sm btn-outline-secondary"
-                                                onClick={() => editAddon(idx)}    // ← тут
-                                            >
-                                                ✏️
-                                            </button>
-                                            <button
-                                                className="btn btn-sm btn-outline-danger"
-                                                onClick={() => removeAddon(idx)}  // ← и тут
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                    {currentService.materials?.length > 0 && (
-                        <div className="mb-3">
-                            <h6>📦 Материалы:</h6>
-                            <ul className="list-group">
-                                {currentService.materials.map((mat, idx) => (
-                                    <li key={idx} className="list-group-item d-flex justify-content-between">
-                                        <span>{mat.label} × {mat.count}</span>
-                                        <span>{mat.price * mat.count} $</span>
-                                        <div className="btn-group">
-                                            <button
-                                                className="btn btn-sm btn-outline-secondary"
-                                                onClick={() => editMaterials(idx)}
-                                            >
-                                                ✏️
-                                            </button>
-                                            <button
-                                                className="btn btn-sm btn-outline-danger"
-                                                onClick={() => removeMaterial(idx)}
-                                            >
-                                                🗑️
-                                            </button>
 
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
+
+
+
+                    </div>
+
+
+
+
 
                     <div className="mb-3">
                         <input
