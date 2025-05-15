@@ -148,10 +148,10 @@ const Form = () => {
     const handleStatusChange = (e) => setStatus(e.target.value);
     const getSheetUrlByTeam = (team) => {
         switch (team) {
-            case "A": return 'https://script.google.com/macros/s/AKfycbyxqdAe-K0NTxKG2vl9oAtSb-t5mc6cb0QjyQRDxwbO1tJFAVCuv2ciMgFxl7ytKCuOag/exec';
-            case "B": return 'https://script.google.com/macros/s/AKfycbycbl3EqNQ79LbldMmx8cVsE3b5OirW1ka2SMRJ1oxH4dxJ89KRCIa6cAbQoYECmEpR/exec';
-            case "C": return 'https://script.google.com/macros/s/AKfycbwAfuSryE-2kFASuOGbvEdq2X2fL08LYzQphEK4asXuOLv9LgbF2ozZhx7t3byvbOQS/exec';
-            case "W":return 'https://script.google.com/macros/s/AKfycbwmRdehNDZLY1IMdNnQw5fJNpZH6Bj4H_CyO7axO1VXFt7llliw9vuAtdqlvHWz-ag/exec';
+            case "A": return 'https://script.google.com/macros/s/AKfycbywhhuZZ2mx8xHhfcaugwqFlB7f0_dFca8_WiZT909fYP7RKdrhFlDz2hcD1EK5UTSo/exec';
+            case "B": return 'https://script.google.com/macros/s/AKfycbxda6RdXDKMOfPqGWLE1tnuAXdLYDNMGfi8h5joP0sndm8RA90vTM5Dk36Jou1YrarR/exec';
+            case "C": return 'https://script.google.com/macros/s/AKfycbyaao_YGdIilFYZdOw04S77AyMBjr_hq3X5wo1IeAbdSLS5xUiHmzvCMTfmIOm0ZYmqTQ/exec';
+            case "W":return 'https://script.google.com/macros/s/AKfycbzct7fO9kYvsGe0D33UVzufPGGqRejri9ADQ6H5jnhhpf0HO8AtvHrYDQR9MgvOkSeTlA/exec';
             default: return 'https://script.google.com/macros/s/AKfycbzqhK1xAvLOGCyrEvaDb1mwizPVSFdXj_LmbpztQbmLBsrsM19khAdSpqA3AxpTvy9jgw/exec';
         }
     };
