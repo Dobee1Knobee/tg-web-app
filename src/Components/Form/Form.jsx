@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useUserByAt } from '../../hooks/findUserByAt';
 import { useMastersByTeam } from '../../hooks/findMastersByTeam';
+import { useSubmitOrder } from "../../hooks/useSubmitOrders";
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 const workTypes = [
@@ -60,6 +61,8 @@ const Form = () => {
     const [displayValue, setDisplayValue] = useState('');
     const [isWeOwnerMount, setIsWeOwnerMount] = useState(false);
     const [mountData,setMountData] = useState({});
+    const { submitOrder, isLoading, error, response } = useSubmitOrder();
+
     const formatPhoneNumber = (value) => {
         // Удаляем всё, кроме цифр
         const digits = value.replace(/\D/g, '');
@@ -96,18 +99,19 @@ const Form = () => {
     const [managerId, setManagerId] = useState("");
     const masters = useMastersByTeam(team); // ⬅️ на верхнем уровне компонента
 
-    const [owner, setOwner] = useState("");
-
+    const [ownerName, setOwnerName] = useState("");
+    const [ownerUsername, setOwnerUsername] = useState("");
     useEffect(() => {
         if (mongoUser) {
-            setOwner(mongoUser.name);
+            setOwnerName(mongoUser.name); // ← имя для Google Sheets
+            setOwnerUsername(`@${telegramUsername}`); // ← username для Mongo
             setTeam(mongoUser.team);
-            setManagerId(mongoUser.manager_id); // добавь стейт manager_id
-
+            setManagerId(mongoUser.manager_id);
         } else if (telegramUsername) {
-            setOwner(`@${telegramUsername}`);
+            setOwnerUsername(`@${telegramUsername}`);
         }
     }, [mongoUser, telegramUsername]);
+
 
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
@@ -125,7 +129,12 @@ const Form = () => {
     const [addMaterialsCount, setAddMaterialsCount] = useState(1);
     const [city, setCity] = useState("");
     const [addonCount, setAddonCount] = useState(1);
-    const [dataLead, setDataLead] = useState("");
+    const [dataLead, setDataLead] = useState(() => {
+        const now = new Date();
+        const date = now.toISOString().split("T")[0]; // "2025-05-17"
+        const time = now.toTimeString().split(":").slice(0, 2).join(":"); // "17:38"
+        return `${date}T${time}`; // → "2025-05-17T17:38"
+    });
     const [commentOrder,setCommentOrder] = useState("");
     const [selectedMaster, setSelectedMaster] = useState("");
     const [currentService, setCurrentService] = useState({
@@ -201,9 +210,7 @@ const Form = () => {
         setIsEditingTotal(false);
         setEditIndex(null);
     };
-    const saveDiagonal = () => {
 
-    }
     const saveMaterial = () => {
         if (!selectedAddMaterials) return;
 
@@ -300,9 +307,8 @@ const Form = () => {
         setEditAddonIndex(null);
         setIsAddingAddons(false);
     };
-
     const submitToGoogleSheets = async () => {
-        const url = getSheetUrlByTeam(team); // ✅ Подставляем нужную ссылку
+        const url = getSheetUrlByTeam(team);
         const leadId = team && managerId ? `${team}${managerId}` : "N/A";
 
         const total = customTotal !== null
@@ -310,35 +316,59 @@ const Form = () => {
             : services
                 .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
                 .reduce((a, b) => a + b, 0);
-        const formattedDate = dataLead.replace("T", " ");
 
-        const payload = {
-            leadId,
-            owner,
+        // ✅ Фикс: если дата не выбрана, используем текущую
+        const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
+
+        const formattedDate = new Date(safeDate).toISOString(); // Для MongoDB
+        const formattedDateSheets = new Date(safeDate).toLocaleString("ru-RU", {
+            timeZone: "America/Los_Angeles",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit"
+        });
+
+        const payloadForSheets = {
+            owner: mongoUser?.name || `@${telegramUsername}`,
             status,
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
-            date: formattedDate,
-            city: city,
+            date: formattedDateSheets,
+            city,
             master: selectedMaster,
             comment: commentOrder,
             total,
-            services
+            services,
+            leadId
         };
-        console.log("LEAD ID:", leadId);
-        console.log("team:", team);
-        console.log("managerId:", managerId);
-        console.log("📤 Отправка данных:", payload);
+
         await fetch(url, {
             method: 'POST',
             mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(payloadForSheets),
         });
-        alert("✅ Заявка отправлена в Google Таблицу!");
+
+        const payloadForMongo = {
+            ...payloadForSheets,
+            date: formattedDate,
+            owner: `@${telegramUsername}`
+        };
+
+        console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
+
+        const result = await submitOrder(payloadForMongo);
+
+        if (result) {
+            alert(`✅ Заявка успешно сохранена. Lead ID: ${result.leadId}`);
+        } else {
+            alert(`❌ Ошибка при сохранении в базу: ${error}`);
+        }
     };
 
 
@@ -365,7 +395,7 @@ const Form = () => {
 
 
             <div className="mb-3">
-                <input className="form-control" placeholder={`Владелец заявки: ${owner}`} readOnly />
+                <input className="form-control" placeholder={`Владелец заявки: ${ownerName}`} readOnly />
             </div>
 
             <div className="mb-3">
