@@ -5,6 +5,9 @@ import { useMastersByTeam } from '../../hooks/findMastersByTeam';
 import { useSubmitOrder } from "../../hooks/useSubmitOrders";
 
 import 'bootstrap/dist/css/bootstrap.min.css';
+import Header from "../Header/Header";
+import {IoArrowBack, IoArrowBackCircle} from "react-icons/io5";
+import {useNavigate} from "react-router-dom";
 const workTypes = [
      { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
@@ -98,6 +101,7 @@ const Form = () => {
     const [team, setTeam] = useState("");
     const [managerId, setManagerId] = useState("");
     const masters = useMastersByTeam(team); // ⬅️ на верхнем уровне компонента
+    const navigate = useNavigate();
 
     const [ownerName, setOwnerName] = useState("");
     const [ownerUsername, setOwnerUsername] = useState("");
@@ -390,6 +394,28 @@ const Form = () => {
 
     return (
         <div className="container py-4">
+            <div className="position-relative">
+                <button
+                    onClick={() => navigate(-1)}
+                    style={{
+                        position: 'absolute',
+                        left: '16px',
+                        background: '#fff',
+                        padding: '2px',
+                        fontSize: '20px',
+                        cursor: 'pointer',
+                        zIndex: 1000,
+                        border:"0px"
+                    }}
+                >
+                    <IoArrowBack />
+                </button>
+
+                <div className="row gap-3">
+                    <Header />
+                </div>
+            </div>
+
             <h2 className="mb-3 text-center mt-4">Создание новой заявки</h2>
 
 
