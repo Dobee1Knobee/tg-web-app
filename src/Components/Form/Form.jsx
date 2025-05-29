@@ -8,6 +8,8 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from "../Header/Header";
 import {IoArrowBack, IoArrowBackCircle} from "react-icons/io5";
 import {useNavigate} from "react-router-dom";
+import { useParams } from "react-router-dom";
+import {useCheckOrder} from "../../hooks/useCheckOrder";
 const workTypes = [
      { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
@@ -62,6 +64,9 @@ const statusColors = {
 
 const Form = () => {
     const [displayValue, setDisplayValue] = useState('');
+    const { leadId } = useParams();
+    const { response: checkResponse, error: checkError, loading, checkOrder } = useCheckOrder();
+
     const [isWeOwnerMount, setIsWeOwnerMount] = useState(false);
     const [mountData,setMountData] = useState({});
     const { submitOrder, isLoading, error, response } = useSubmitOrder();
@@ -92,7 +97,8 @@ const Form = () => {
         const cleaned = digits.startsWith('1') ? digits.slice(1) : digits;
 
         setPhoneNumberLead(cleaned); // сюда только цифры без 1
-        setDisplayValue(formatPhoneNumber(input)); // сюда красиво отформатированное
+        setDisplayValue(formatPhoneNumber(input));// сюда красиво отформатированное
+        checkOrder(cleaned);
     };
 
     const { user } = useTelegram();
@@ -116,6 +122,31 @@ const Form = () => {
         }
     }, [mongoUser, telegramUsername]);
 
+    useEffect(() => {
+        if (!leadId) return;
+
+        fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`)
+            .then(res => res.json())
+            .then((data) => {
+                setStatus(data.status || "");
+                setLeadName(data.leadName || "");
+                setAddressLead(data.address || "");
+                setPhoneNumberLead(data.phone || "");
+                setDisplayValue(formatPhoneNumber(data.phone || ""));
+                setCity(data.city || "");
+                setCommentOrder(data.comment || "");
+                setSelectedMaster(data.master || "");
+                setServices(data.services || []);
+
+                const isoDate = new Date(data.date);
+                const date = isoDate.toISOString().split("T")[0];
+                const time = isoDate.toTimeString().slice(0, 5);
+                setDataLead(`${date}T${time}`);
+            })
+            .catch(err => {
+                console.error("❌ Ошибка при загрузке заказа по leadId:", err);
+            });
+    }, [leadId]);
 
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
@@ -157,7 +188,7 @@ const Form = () => {
     const [editIndex, setEditIndex] = useState(null);
     const [isAddingMaterials, setIsAddingMaterials] = useState(false);
     const [isAddingMount, setIsAddingMount] = useState(false);
-
+    const [creatingNewOrChanging,setCreatingNewOrChanging] = useState(false);
     const handleStatusChange = (e) => setStatus(e.target.value);
     const getSheetUrlByTeam = (team) => {
         switch (team) {
@@ -476,6 +507,35 @@ const Form = () => {
                     autoComplete="tel"
                 />
             </div>
+            {checkResponse?.orders?.length > 0  && !creatingNewOrChanging && (
+                <div className="mt-3 mb-3">
+                    <h5>🔁 Найдено {checkResponse.orders.length} дубля:</h5>
+                    <ul className="list-group mt-2">
+                        {checkResponse.orders.map((order, idx) => (
+                            <li
+                                key={idx}
+                                className="list-group-item d-flex justify-content-between align-items-center"
+                            >
+                                <div>
+                                    Заказ <strong>{order.leadId}</strong> — {order.status || 'без статуса'}
+                                </div>
+                                <button
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={() => {
+                                        setCreatingNewOrChanging(true);
+                                        navigate(`/change/${order.leadId}`);
+                                    }}
+                                >
+
+                                Открыть
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+
             <div className="mb-3">
                 <div className="d-flex gap-2 mb-3">
                     <input
@@ -991,34 +1051,24 @@ const Form = () => {
                                 </button>
                             </div>
                         )}
-                        {currentService.mountData && Object.keys(currentService.mountData).length > 0 && (
+                        {currentService.materials.length > 0 && (
                             <div className="mb-3">
                                 <h6>📦 Материалы:</h6>
                                 <ul className="list-group">
-                                    {currentService.mountData.map((mat, idx) => (
+                                    {currentService.materials.map((mat, idx) => (
                                         <li key={idx} className="list-group-item d-flex justify-content-between">
                                             <span>{mat.label} × {mat.count}</span>
                                             <span>{mat.price * mat.count} $</span>
                                             <div className="btn-group">
-                                                <button
-                                                    className="btn btn-sm btn-outline-secondary"
-                                                    onClick={() => editMaterials(idx)}
-                                                >
-                                                    ✏️
-                                                </button>
-                                                <button
-                                                    className="btn btn-sm btn-outline-danger"
-                                                    onClick={() => removeMaterial(idx)}
-                                                >
-                                                    🗑️
-                                                </button>
-
+                                                <button onClick={() => editMaterials(idx)} className="btn btn-sm btn-outline-secondary">✏️</button>
+                                                <button onClick={() => removeMaterial(idx)} className="btn btn-sm btn-outline-danger">🗑️</button>
                                             </div>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
                         )}
+
 
 
 

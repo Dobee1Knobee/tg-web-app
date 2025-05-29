@@ -40,7 +40,6 @@ const WelcomePage = () => {
     };
 
     const handleSearch = () => {
-        if (lookingNumber.length < 10) return alert("Введите полный номер телефона");
         checkOrder(lookingNumber);
     };
 
@@ -135,7 +134,7 @@ const WelcomePage = () => {
                                                 </div>
                                                 <button
                                                     className="btn btn-sm btn-outline-primary "  style={{marginLeft:"1vh"}}
-                                                    onClick={() => navigate(`/change/${order._id}`)}                                                >
+                                                    onClick={() => navigate(`/change/${order.leadId}`)}                                                >
                                                     Открыть
                                                 </button>
 
