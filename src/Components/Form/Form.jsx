@@ -60,7 +60,14 @@ const statusColors = {
     "Прозвонить завтра": "#e6cff1",
     "Статус заказа": "#e0e0e0",
 };
-
+function roundTimeTo5Minutes(timeStr) {
+    const [hours, minutes] = timeStr.split(":").map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    const rounded = Math.round(totalMinutes / 5) * 5;
+    const hh = String(Math.floor(rounded / 60)).padStart(2, "0");
+    const mm = String(rounded % 60).padStart(2, "0");
+    return `${hh}:${mm}`;
+}
 
 const Form = () => {
     const [displayValue, setDisplayValue] = useState('');
@@ -678,12 +685,17 @@ const Form = () => {
                     <input
                         className="form-control"
                         type="time"
-                        value={dataLead.split("T")[1] || "12:00"}
-                        onChange={(e) => setDataLead(prev => {
-                            const date = prev.split("T")[0] || new Date().toISOString().split("T")[0];
-                            return `${date}T${e.target.value}`;
-                        })}
+                        step="300"
+                        value={roundTimeTo5Minutes(dataLead.split("T")[1] || "12:00")}
+                        onChange={(e) =>
+                            setDataLead((prev) => {
+                                const date = prev.split("T")[0] || new Date().toISOString().split("T")[0];
+                                const rounded = roundTimeTo5Minutes(e.target.value);
+                                return `${date}T${rounded}`;
+                            })
+                        }
                     />
+
 
 
                 </div>
