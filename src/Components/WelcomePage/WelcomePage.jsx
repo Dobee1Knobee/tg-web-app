@@ -130,11 +130,11 @@ const WelcomePage = () => {
                                                 className="list-group-item d-flex justify-content-between align-items-center"
                                             >
                                                 <div>
-                                                    Заказ <strong>{order.leadId}</strong> — {order.status || 'без статуса'}
+                                                    Заказ <strong>{order.order_id}</strong> — {order.text_status || 'без статуса'}
                                                 </div>
                                                 <button
                                                     className="btn btn-sm btn-outline-primary "  style={{marginLeft:"1vh"}}
-                                                    onClick={() => navigate(`/change/${order.leadId}`)}                                                >
+                                                    onClick={() => navigate(`/change/${order.order_id}`)}                                                >
                                                     Открыть
                                                 </button>
 

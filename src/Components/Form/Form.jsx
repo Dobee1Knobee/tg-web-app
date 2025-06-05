@@ -108,6 +108,7 @@ const Form = () => {
     const [managerId, setManagerId] = useState("");
     const masters = useMastersByTeam(team); // ⬅️ на верхнем уровне компонента
     const navigate = useNavigate();
+    const [updateOrder,setUpdateOrder] = useState(false);
 
     const [ownerName, setOwnerName] = useState("");
     const [ownerUsername, setOwnerUsername] = useState("");
@@ -128,7 +129,8 @@ const Form = () => {
         fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`)
             .then(res => res.json())
             .then((data) => {
-                setStatus(data.status || "");
+                setUpdateOrder(true);
+                setStatus(data.text_status || "");
                 setLeadName(data.leadName || "");
                 setAddressLead(data.address || "");
                 setPhoneNumberLead(data.phone || "");
@@ -192,11 +194,11 @@ const Form = () => {
     const handleStatusChange = (e) => setStatus(e.target.value);
     const getSheetUrlByTeam = (team) => {
         switch (team) {
-            case "A": return 'https://script.google.com/macros/s/AKfycbywhhuZZ2mx8xHhfcaugwqFlB7f0_dFca8_WiZT909fYP7RKdrhFlDz2hcD1EK5UTSo/exec';
-            case "B": return 'https://script.google.com/macros/s/AKfycbxda6RdXDKMOfPqGWLE1tnuAXdLYDNMGfi8h5joP0sndm8RA90vTM5Dk36Jou1YrarR/exec';
-            case "C": return 'https://script.google.com/macros/s/AKfycbyaao_YGdIilFYZdOw04S77AyMBjr_hq3X5wo1IeAbdSLS5xUiHmzvCMTfmIOm0ZYmqTQ/exec';
-            case "W":return 'https://script.google.com/macros/s/AKfycbzct7fO9kYvsGe0D33UVzufPGGqRejri9ADQ6H5jnhhpf0HO8AtvHrYDQR9MgvOkSeTlA/exec';
-            default: return 'https://script.google.com/macros/s/AKfycbzqhK1xAvLOGCyrEvaDb1mwizPVSFdXj_LmbpztQbmLBsrsM19khAdSpqA3AxpTvy9jgw/exec';
+            case "A": return 'https://script.google.com/macros/s/AKfycbzFYuYYucxmtVYRJN8Zr2Gsx7cwG0ZDT7ZZhDnI5_O1KMF-L3vHalJoFd-sVJt3QGow/exec';
+            case "B": return 'https://script.google.com/macros/s/AKfycbxQ8AzBye--K_hss5P6UrUR1fhxHPqQYDsa0x8rfgtxuL_vog2BrRfbBe8vlMTFqr9s/exec';
+            case "C": return 'https://script.google.com/macros/s/AKfycbyqNyVtIzHXDibFkU0BUM_MSeRm8ftg9-koLNazjm4kbH0dCfkjyos0TDFSbt2Hf-VTXQ/exec';
+            case "W":return 'https://script.google.com/macros/s/AKfycbwbTqb4TLfXuAEnOGdmKUHPh7w9bZBLTqLdLnQ4XxswhPiX66fX5NN7urBhxQUEENn-9w/exec';
+            default: return 'https://script.google.com/macros/s/AKfycbwRv1fJ5F9C0ru4ayWAFIUP08yLXyIkSpEdhCbJsBN-_G1jOGFPezMPruTj5FHj2CeZAg/exec';
         }
     };
 
@@ -345,7 +347,8 @@ const Form = () => {
     const submitToGoogleSheets = async () => {
         const url = getSheetUrlByTeam(team);
         const leadId = team && managerId ? `${team}${managerId}` : "N/A";
-
+        const manager_id = managerId ? `${managerId}` : "N/A";
+        const team_id = team ? team : "N/A";
         const total = customTotal !== null
             ? Number(customTotal)
             : services
@@ -367,7 +370,9 @@ const Form = () => {
 
         const payloadForSheets = {
             owner: mongoUser?.name || `@${telegramUsername}`,
-            status,
+            team:team_id,
+            manager_id,
+            text_status:status,
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
@@ -377,7 +382,7 @@ const Form = () => {
             comment: commentOrder,
             total,
             services,
-            leadId
+            leadId,
         };
 
         await fetch(url, {
@@ -406,7 +411,130 @@ const Form = () => {
         }
     };
 
+    const updateOrderInMongoAndSheets = async () => {
+        const currentLeadId = leadId;
 
+        const total = customTotal !== null
+            ? Number(customTotal)
+            : services
+                .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
+                .reduce((a, b) => a + b, 0);
+
+        const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
+        const formattedDate = new Date(safeDate).toISOString();
+
+        const filteredServices = services.map(s => ({
+            diagonal: s.diagonal || "",
+            count: String(s.count || "1"), // важно — строка
+            workType: s.workType || "",
+            message: s.message || "",
+            price: Number(s.price || 0),
+            mountType: s.mountType || "",
+            mountPrice: Number(s.mountPrice || 0),
+            materialPrice: Number(s.materialPrice || 0),
+            addonsPrice: Number(s.addonsPrice || 0),
+            addons: Array.isArray(s.addons)
+                ? s.addons.map(a => ({
+                    label: a.label || "",
+                    value: a.value || "",
+                    price: Number(a.price || 0),
+                    count: Number(a.count || 0),
+                }))
+                : [],
+            materials: Array.isArray(s.materials)
+                ? s.materials.map(m => ({
+                    label: m.label || "",
+                    value: m.value || "",
+                    price: Number(m.price || 0),
+                    count: Number(m.count || 0),
+                }))
+                : [],
+        }));
+
+        const payloadUpdate = {
+            owner: mongoUser?.name || `@${telegramUsername}`,
+            status,
+            leadName,
+            address: addressLead,
+            phone: phoneNumberLead,
+            date: formattedDate,
+            city,
+            master: selectedMaster,
+            comment: commentOrder,
+            total,
+            services: filteredServices,
+            leadId: currentLeadId,
+        };
+
+        // Получаем текущую заявку
+        const existingOrder = await fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orderByLeadId/${currentLeadId}`)
+            .then(async res => {
+                if (!res.ok) {
+                    const text = await res.text();
+                    console.error("❌ Ответ сервера:", text);
+                    throw new Error(`❌ Заказ с ID ${currentLeadId} не найден (${res.status})`);
+                }
+                return res.json();
+            })
+            .catch(err => {
+                console.error("🔥 Ошибка загрузки заказа:", err.message);
+                alert(err.message);
+                return null;
+            });
+
+        if (!existingOrder) return;
+
+        const changeEntry = {
+            changedAt: new Date().toISOString(),
+            changedBy: `@${telegramUsername}`,
+            changes: payloadUpdate,
+        };
+
+        // Исключаем поля, которые нельзя отправлять
+        const { _id, __v, createdAt, updatedAt, original, changes, ...sanitizedExisting } = existingOrder;
+
+        const updatedOrder = {
+            ...sanitizedExisting,
+            ...payloadUpdate,
+            changes: [...(existingOrder.changes || []), changeEntry], // оставь, это ок
+        };
+
+        console.log(updatedOrder)
+        try {
+            const res = await fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orders/${currentLeadId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(updatedOrder),
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error("❌ Ошибка от сервера:", errorText);
+                alert("❌ Ошибка при обновлении заявки. См. консоль.");
+                return;
+            }
+
+            alert(`✅ Заявка успешно обновлена. Lead ID: ${currentLeadId}`);
+        } catch (err) {
+            console.error("❌ Ошибка сети или CORS:", err);
+            alert("❌ Запрос не дошёл до сервера. Проверь подключение.");
+        }
+    };
+
+
+    const allCities = [
+        "Austin", "Dallas", "Denver", "Houston", "Las-Vegas", "Los_Angeles",
+        "Phoenix", "Portland", "Salt_Lake", "SF", "Sacramento", "San_Diego",
+        "Seattle", "New_York", "Florida", "Philadelphia", "Atlanta", "Kansas",
+        "Baltimore", "Boston", "Chicago", "Charlotte", "Cary-Raleigh", "Cincinnati",
+        "Columbus", "Cleveland", "Detroit", "Indianapolis", "Minneapolis",
+        "Milwaukee", "Pittsburgh", "Louisville", "St.Louis", "Richmond",
+        "Hartford", "New_Orleans"
+    ];
+    const [showList, setShowList] = useState(false);
+    const filtered = allCities.filter((c) =>
+        c.toLowerCase().includes(city.toLowerCase())
+    );
 
 
     const removeAddon = (idx) => {
@@ -517,13 +645,13 @@ const Form = () => {
                                 className="list-group-item d-flex justify-content-between align-items-center"
                             >
                                 <div>
-                                    Заказ <strong>{order.leadId}</strong> — {order.status || 'без статуса'}
+                                    Заказ <strong>{order.order_id}</strong> — {order.text_status || 'без статуса'}
                                 </div>
                                 <button
                                     className="btn btn-sm btn-outline-primary"
                                     onClick={() => {
                                         setCreatingNewOrChanging(true);
-                                        navigate(`/change/${order.leadId}`);
+                                        navigate(`/change/${order.order_id}`);
                                     }}
                                 >
 
@@ -561,6 +689,37 @@ const Form = () => {
                 </div>
 
             </div>
+            <div className="mb-3">
+                <input
+                    className="form-control"
+                    type="text"
+                    placeholder="Город"
+                    value={city}
+                    onFocus={() => setShowList(true)}
+                    onBlur={() => setTimeout(() => setShowList(false), 200)}
+                    onChange={(e) => setCity(e.target.value)}
+                />
+                {showList && (
+                    <ul
+                        className="list-group mt-1"
+                        style={{ maxHeight: 120, overflowY: "auto" }}
+                    >
+                        {filtered.length > 0 ? (
+                            filtered.map((c) => (
+                                <li
+                                    key={c}
+                                    className="list-group-item list-group-item-action"
+                                    onMouseDown={() => setCity(c)}
+                                >
+                                    {c}
+                                </li>
+                            ))
+                        ) : (
+                            <li className="list-group-item text-muted">Нет совпадений</li>
+                        )}
+                    </ul>
+                )}
+            </div>
 
             <div className="mb-3">
                 <select
@@ -573,29 +732,21 @@ const Form = () => {
                         const matched = masters.find((m) => m.name === name);
                         if (matched) {
                             setCity(matched.city);
-
                         }
                     }}
                 >
                     <option value="">Выберите мастера</option>
-                    {masters?.map((m, i) => (
-                        <option key={i} value={m.name}>
-                            {m.name} ({m.city})
-                        </option>
-                    ))}
+                    {masters
+                        ?.filter((m) => city === "" || m.city.toLowerCase() === city.toLowerCase())
+                        .map((m, i) => (
+                            <option key={i} value={m.name}>
+                                {m.name} ({m.city})
+                            </option>
+                        ))}
                 </select>
+            </div>
 
-            </div>
-            <div className="mb-3">
-                {/*подтягивать по манагеру //TODO*/}
-                <input
-                    className="form-control"
-                    type="text"
-                    placeholder="Город"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                />
-            </div>
+
             <div className="mb-3">
                 <input
                     className="form-control"
@@ -717,14 +868,21 @@ const Form = () => {
                 </div>
             )}
             {!isAdding && (
-                <div >
-                    <button className="btn btn-primary " style={{marginRight:"2vh"}} onClick={startAdding}>
+                <div>
+                    <button className="btn btn-primary" style={{ marginRight: "2vh" }} onClick={startAdding}>
                         Добавить услугу
                     </button>
-                    <button className="btn btn-success " onClick={submitToGoogleSheets}>
-                        Отправить заявку в Google Таблицу
-                    </button>
+                    {!updateOrder ? (
+                        <button className="btn btn-success" onClick={submitToGoogleSheets}>
+                            Отправить заявку в Google Таблицу
+                        </button>
+                    ) : (
+                        <button className="btn btn-success" onClick={updateOrderInMongoAndSheets}>
+                            Сохранить изменения в таблицу
+                        </button>
+                    )}
                 </div>
+
 
             )}
             {isAdding && (
@@ -1076,10 +1234,6 @@ const Form = () => {
 
 
                     </div>
-
-
-
-
 
                     <div className="mb-3">
                         <input
