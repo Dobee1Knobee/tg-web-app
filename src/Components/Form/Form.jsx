@@ -201,11 +201,11 @@ const Form = () => {
     const handleStatusChange = (e) => setStatus(e.target.value);
     const getSheetUrlByTeam = (team) => {
         switch (team) {
-            case "A": return 'https://script.google.com/macros/s/AKfycbzFYuYYucxmtVYRJN8Zr2Gsx7cwG0ZDT7ZZhDnI5_O1KMF-L3vHalJoFd-sVJt3QGow/exec';
-            case "B": return 'https://script.google.com/macros/s/AKfycbxQ8AzBye--K_hss5P6UrUR1fhxHPqQYDsa0x8rfgtxuL_vog2BrRfbBe8vlMTFqr9s/exec';
-            case "C": return 'https://script.google.com/macros/s/AKfycbyqNyVtIzHXDibFkU0BUM_MSeRm8ftg9-koLNazjm4kbH0dCfkjyos0TDFSbt2Hf-VTXQ/exec';
-            case "W":return 'https://script.google.com/macros/s/AKfycbwbTqb4TLfXuAEnOGdmKUHPh7w9bZBLTqLdLnQ4XxswhPiX66fX5NN7urBhxQUEENn-9w/exec';
-            default: return 'https://script.google.com/macros/s/AKfycbwRv1fJ5F9C0ru4ayWAFIUP08yLXyIkSpEdhCbJsBN-_G1jOGFPezMPruTj5FHj2CeZAg/exec';
+            case "A": return 'https://script.google.com/macros/s/AKfycbzZb8N6sHhrYa0J3nbd66RvRIp71HDbgU2eKDjlSHp1eUPHPpITLTkCvuU9nAqToUyN/exec';
+            case "B": return 'https://script.google.com/macros/s/AKfycbx2s4Yn5fy6vbDq8ceDl6IKICqCm37GKTLa27K9fqnVnpTgVv8YneGBlMX0gp0C9zvL/exec';
+            case "C": return 'https://script.google.com/macros/s/AKfycbzxEa9aTzD_TZWYhdBtJu6_oNQqLvg9zKbMzVRYIiKkwj16w_ri4-BQ-OHQMLFAYqBr_w/exec';
+            case "W":return 'https://script.google.com/macros/s/AKfycbwrEH4SU2-Gm3yCXngh8NytxmDcwIcV64ZiCSTu4moUHSfEx5RZvILBofdlN55CMAmnfA/exec';
+            default: return 'https://script.google.com/macros/s/AKfycbw7Ro5gCbzIdZDJc4qgvyJivIRO7dejmX6tpal2vP-dCltLfj8eDF0GShhdTTQKnZKZig/exec';
         }
     };
 
@@ -351,35 +351,60 @@ const Form = () => {
         setEditAddonIndex(null);
         setIsAddingAddons(false);
     };
+
+
+// Исправленная функция submitToGoogleSheets
     const submitToGoogleSheets = async () => {
         const url = getSheetUrlByTeam(team);
-        const leadId = team && managerId ? `${team}${managerId}` : "N/A";
         const manager_id = managerId ? `${managerId}` : "N/A";
         const team_id = team ? team : "N/A";
+
         const total = customTotal !== null
             ? Number(customTotal)
             : services
                 .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
                 .reduce((a, b) => a + b, 0);
 
-        // ✅ Фикс: если дата не выбрана, используем текущую
         const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
+        const formattedDate = new Date(safeDate).toISOString(); // GMT+0 для MongoDB
+        const formattedDateSheets = new Date(safeDate).toISOString().slice(0, 19).replace('T', ' ');
 
-        const formattedDate = new Date(safeDate).toISOString(); // Для MongoDB
-        const formattedDateSheets = new Date(safeDate).toLocaleString("ru-RU", {
-            timeZone: "America/Los_Angeles",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit"
-        });
+        // ✅ НЕ отправляем leadId - пусть сервер сгенерирует
+        const payloadForMongo = {
+            owner: `@${telegramUsername}`,
+            team: team_id,
+            manager_id,
+            text_status: status,
+            leadName,
+            address: addressLead,
+            phone: phoneNumberLead,
+            date: formattedDate,
+            city,
+            master: selectedMaster,
+            comment: commentOrder,
+            total,
+            services,
+            // leadId НЕ отправляем
+        };
+
+        console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
+
+        const result = await submitOrder(payloadForMongo);
+
+        if (!result) {
+            alert(`❌ Ошибка при сохранении в базу: ${error}`);
+            return;
+        }
+
+        // ✅ Используем leadId из ответа сервера
+        const finalLeadId = result.leadId;
+        console.log("🎯 leadId из сервера:", finalLeadId);
 
         const payloadForSheets = {
             owner: mongoUser?.name || `@${telegramUsername}`,
-            team:team_id,
+            team: team_id,
             manager_id,
-            text_status:status,
+            text_status: status,
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
@@ -389,37 +414,31 @@ const Form = () => {
             comment: commentOrder,
             total,
             services,
-            leadId,
+            leadId: finalLeadId, // ✅ leadId из сервера
         };
 
-        await fetch(url, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payloadForSheets),
-        });
+        console.log("📦 Payload для Google Sheets:", JSON.stringify(payloadForSheets, null, 2));
 
-        const payloadForMongo = {
-            ...payloadForSheets,
-            date: formattedDate,
-            owner: `@${telegramUsername}`
-        };
+        try {
+            await fetch(url, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payloadForSheets),
+            });
 
-        console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
-
-        const result = await submitOrder(payloadForMongo);
-
-        if (result) {
-            alert(`✅ Заявка успешно сохранена. Lead ID: ${result.leadId}`);
-        } else {
-            alert(`❌ Ошибка при сохранении в базу: ${error}`);
+            alert(`✅ Заявка успешно сохранена. Lead ID: ${finalLeadId}`);
+        } catch (err) {
+            console.error("❌ Ошибка при отправке в Google Sheets:", err);
+            alert(`⚠️ Заказ сохранен в базу (ID: ${finalLeadId}), но возникла ошибка при отправке в Google Sheets`);
         }
     };
 
+
     const updateOrderInMongoAndSheets = async () => {
-        const currentLeadId = leadId;
+        const currentLeadId = leadId; // Используем существующий leadId
 
         const total = customTotal !== null
             ? Number(customTotal)
@@ -428,11 +447,14 @@ const Form = () => {
                 .reduce((a, b) => a + b, 0);
 
         const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
-        const formattedDate = new Date(safeDate).toISOString();
+        const formattedDate = new Date(safeDate).toISOString(); // GMT+0 для MongoDB
+
+        // ✅ ИСПРАВЛЕНИЕ: Время для Google Sheets тоже в GMT+0
+        const formattedDateSheets = new Date(safeDate).toISOString().slice(0, 19).replace('T', ' ');
 
         const filteredServices = services.map(s => ({
             diagonal: s.diagonal || "",
-            count: String(s.count || "1"), // важно — строка
+            count: String(s.count || "1"),
             workType: s.workType || "",
             message: s.message || "",
             price: Number(s.price || 0),
@@ -492,7 +514,7 @@ const Form = () => {
         if (!existingOrder) return;
 
         const changeEntry = {
-            changedAt: new Date().toISOString(),
+            changedAt: new Date().toISOString(), // GMT+0
             changedBy: `@${telegramUsername}`,
             changes: payloadUpdate,
         };
@@ -503,11 +525,13 @@ const Form = () => {
         const updatedOrder = {
             ...sanitizedExisting,
             ...payloadUpdate,
-            changes: [...(existingOrder.changes || []), changeEntry], // оставь, это ок
+            changes: [...(existingOrder.changes || []), changeEntry],
         };
 
-        console.log(updatedOrder)
+        console.log(updatedOrder);
+
         try {
+            // Обновляем в MongoDB
             const res = await fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orders/${currentLeadId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
@@ -519,6 +543,38 @@ const Form = () => {
                 console.error("❌ Ошибка от сервера:", errorText);
                 alert("❌ Ошибка при обновлении заявки. См. консоль.");
                 return;
+            }
+
+            // Если MongoDB обновился успешно, отправляем в Google Sheets
+            const url = getSheetUrlByTeam(team);
+            const payloadForSheets = {
+                owner: mongoUser?.name || `@${telegramUsername}`,
+                team: team || "N/A",
+                manager_id: managerId || "N/A",
+                text_status: status,
+                leadName,
+                address: addressLead,
+                phone: phoneNumberLead,
+                date: formattedDateSheets, // ← GMT+0
+                city,
+                master: selectedMaster,
+                comment: commentOrder,
+                total,
+                services: filteredServices,
+                leadId: currentLeadId, // ← Используем тот же leadId
+            };
+
+            try {
+                await fetch(url, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payloadForSheets),
+                });
+            } catch (sheetsError) {
+                console.error("❌ Ошибка при обновлении Google Sheets:", sheetsError);
             }
 
             alert(`✅ Заявка успешно обновлена. Lead ID: ${currentLeadId}`);
