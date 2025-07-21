@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import { IoArrowBack } from "react-icons/io5";
 import { useCheckOrder } from "../../hooks/useCheckOrder";
+import {useTelegram} from "../../hooks/useTelegram";
+import {useUserByAt} from "../../hooks/findUserByAt";
 
 const WelcomePage = () => {
     const navigate = useNavigate();
@@ -13,7 +15,9 @@ const WelcomePage = () => {
     const [lookingNumber, setLookingNumber] = useState("");
     const { response, error, loading, checkOrder } = useCheckOrder();
     const inputRef = useRef(null);
-
+    const { user } = useTelegram();
+    const telegramUsername = user?.username?.toLowerCase() || "devapi1";
+    const mongoUser = useUserByAt(telegramUsername);
 
     const formatPhoneNumber = (value) => {
         const digits = value.replace(/\D/g, '');
@@ -65,14 +69,15 @@ const WelcomePage = () => {
             <div className="d-flex flex-column gap-3 justify-content-center align-items-center mt-5">
                 {!isSearching && (
                     <div className="w-100 text-center">
-                        <h3>Что вы хотите сделать?</h3>
+                        <h3>Добрый день, {mongoUser?.name}</h3>
 
                         <button className="btn btn-warning w-100 mb-3" onClick={() => navigate('/form')}>
                             Новая заявка
                         </button>
-                        <button className="btn btn-primary w-100" onClick={() => setIsSearching(true)}>
+                        <button className="btn btn-primary w-100 mb-3" onClick={() => setIsSearching(true)}>
                             Найти существующий заказ
                         </button>
+                        <button className={"btn btn-success w-100"}>Мои заказы</button>
                     </div>
                 )}
 
