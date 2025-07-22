@@ -7,6 +7,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { Route, Routes } from "react-router-dom";
 import WelcomePage from "./Components/WelcomePage/WelcomePage";
 import OrderChange from "./Components/SearchAndChange/OrderChange";
+import OwnOrders from "./Components/OwnOrders /OwnOrders";
 
 function App() {
     const { tg } = useTelegram();
@@ -20,6 +21,8 @@ function App() {
             <Routes>
                 <Route index element={<WelcomePage />} />
                 <Route path="/form" element={<Form />} />
+                <Route path="/ownOrders" element={<OwnOrders />} />
+
                 <Route path="/change/:leadId" element={<Form />} />
             </Routes>
         </div>

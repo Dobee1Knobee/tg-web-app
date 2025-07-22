@@ -18,7 +18,7 @@ export const useCheckOrder = () => {
 
         try {
             const res = await fetch(
-                `https://backend-bot-756832582185.us-central1.run.app/api/doubleOrder?phone=${encodeURIComponent(phone)}`
+                `https://bot-crm-backend-756832582185.us-central1.run.app/api/doubleOrder?phone=${encodeURIComponent(phone)}`
             );
 
             if (!res.ok) {

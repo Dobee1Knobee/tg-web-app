@@ -11,7 +11,7 @@ export const useSubmitOrder = () => {
         setResponse(null);
 
         try {
-            const res = await fetch("https://backend-bot-756832582185.us-central1.run.app/api/addOrder", {
+            const res = await fetch("https://bot-crm-backend-756832582185.us-central1.run.app/api/addOrder", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),

@@ -19,7 +19,7 @@ export const useMastersByTeam = (team) => {
 
         const queryTeam = mapTeamToQuery(team);
 
-        fetch(`https://backend-bot-756832582185.us-central1.run.app/api/masters?team=${queryTeam}`)
+        fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/masters?team=${queryTeam}`)
             .then((res) => (res.ok ? res.json() : []))
             .then(setMasters)
             .catch(() => setMasters([]));

@@ -48,10 +48,11 @@ const materialsList = [
 
 
 const statusColors = {
-    "В работе": "#ffff00",
     "Другой регион": "#00e5ff",
     "Невалидный": "#f44336",
     "Недозвон": "#9e9e9e",
+    "В работе": "#ffff00",
+
     "Ночной": "#1976d2",
     "Ночной ранний": "#bfe1f6",
     "Нужно подтверждение": "#76ff03",
@@ -133,7 +134,7 @@ const Form = () => {
     useEffect(() => {
         if (!leadId) return;
 
-        fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`)
+        fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`)
             .then(res => res.json())
             .then((data) => {
                 setUpdateOrder(true);
@@ -182,6 +183,7 @@ const Form = () => {
     const [commentOrder,setCommentOrder] = useState("");
     const [selectedMaster, setSelectedMaster] = useState("");
     const [currentService, setCurrentService] = useState({
+        label:"",
         diagonal: "",
         count: "1",
         workType: workTypes[0].value,
@@ -215,6 +217,7 @@ const Form = () => {
 
     const startAdding = () => {
         setCurrentService({
+            label:"",
             diagonal: "",
             count: "1",
             workType: workTypes[0].value,
@@ -240,6 +243,7 @@ const Form = () => {
         }
         setIsAdding(false);
         setCurrentService({
+            label: "",
             diagonal: "",
             count: "1",
             workType: workTypes[0].value,
@@ -371,7 +375,7 @@ const Form = () => {
 
         // ✅ НЕ отправляем leadId - пусть сервер сгенерирует
         const payloadForMongo = {
-            owner: `@${telegramUsername}`,
+            owner: `${telegramUsername}`,
             team: team_id,
             manager_id,
             text_status: status,
@@ -401,7 +405,7 @@ const Form = () => {
         console.log("🎯 leadId из сервера:", finalLeadId);
 
         const payloadForSheets = {
-            owner: mongoUser?.name || `@${telegramUsername}`,
+            owner: mongoUser?.name || `${telegramUsername}`,
             team: team_id,
             manager_id,
             text_status: status,
@@ -453,6 +457,7 @@ const Form = () => {
         const formattedDateSheets = new Date(safeDate).toISOString().slice(0, 19).replace('T', ' ');
 
         const filteredServices = services.map(s => ({
+            label:s.label || "",
             diagonal: s.diagonal || "",
             count: String(s.count || "1"),
             workType: s.workType || "",
@@ -496,7 +501,7 @@ const Form = () => {
         };
 
         // Получаем текущую заявку
-        const existingOrder = await fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orderByLeadId/${currentLeadId}`)
+        const existingOrder = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${currentLeadId}`)
             .then(async res => {
                 if (!res.ok) {
                     const text = await res.text();
@@ -532,7 +537,7 @@ const Form = () => {
 
         try {
             // Обновляем в MongoDB
-            const res = await fetch(`https://backend-bot-756832582185.us-central1.run.app/api/orders/${currentLeadId}`, {
+            const res = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orders/${currentLeadId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(updatedOrder),
@@ -742,7 +747,6 @@ const Form = () => {
                         className="form-control"
                         type="time"
                         step="300"
-                        value={roundTimeTo5Minutes(dataLead.split("T")[1] || "12:00")}
                         onChange={(e) =>
                             setDataLead((prev) => {
                                 const date = prev.split("T")[0] || new Date().toISOString().split("T")[0];
@@ -993,13 +997,15 @@ const Form = () => {
 
                                             let autoType = currentService.workType;
                                             let autoPrice = currentService.price;
-
+                                            let label = currentService.label;
                                             if (num <= 31) {
                                                 autoType = "tv_std";
+                                                label = "TV standard < 31";
                                                 autoPrice = 69;
                                                 setShowTechChoice(false)
                                             } else if (num >= 32 && num <= 59) {
                                                 autoType = "tv_std";
+                                                label = "TV standard > 32 <= 59"
                                                 autoPrice = 129;
                                                 setShowTechChoice(false)
                                             } else if (num >= 60) {
@@ -1011,6 +1017,7 @@ const Form = () => {
                                                 ...currentService,
                                                 diagonal: val,
                                                 workType: autoType,
+                                                label: label,
                                                 price: autoPrice,
                                             });
                                         }}
@@ -1042,6 +1049,7 @@ const Form = () => {
                                             onClick={() => {
                                                 setCurrentService({
                                                     ...currentService,
+                                                    label: "ТМ > 60 1tech",
                                                     workType: "tv_big",
                                                     price: 149,
                                                 });
@@ -1055,6 +1063,7 @@ const Form = () => {
                                             onClick={() => {
                                                 setCurrentService({
                                                     ...currentService,
+                                                    label: "ТМ > 60 2tech",
                                                     workType: "tv_big2",
                                                     price: 189,
                                                 });

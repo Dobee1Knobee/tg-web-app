@@ -77,7 +77,9 @@ const WelcomePage = () => {
                         <button className="btn btn-primary w-100 mb-3" onClick={() => setIsSearching(true)}>
                             Найти существующий заказ
                         </button>
-                        <button className={"btn btn-success w-100"}>Мои заказы</button>
+                        <button className="btn btn-success w-100" onClick={() => navigate('/OwnOrders')}>Мои заказы</button>
+                        <button className="btn btn-danger w-100 mt-3" onClick={() => navigate('/OwnOrders')}>Аналитика</button>
+
                     </div>
                 )}
 
