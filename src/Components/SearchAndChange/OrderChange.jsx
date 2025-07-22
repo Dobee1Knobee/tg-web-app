@@ -112,7 +112,7 @@ const OrderChange = () => {
             total: customTotal !== null ? Number(customTotal) : services
                 .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
                 .reduce((a, b) => a + b, 0),
-            owner: `@${telegramUsername}`,
+            owner: `${user.at}`,
             leadId: team + managerId,
         };
 
@@ -121,7 +121,7 @@ const OrderChange = () => {
                 ...(changes || []),
                 {
                     date: now.toISOString(),
-                    user: `@${telegramUsername}`,
+                    user: `@${user.at}`,
                     fullSnapshot: {
                         status,
                         leadName,
@@ -132,12 +132,13 @@ const OrderChange = () => {
                         master: selectedMaster,
                         comment: commentOrder,
                         services,
+                        owner: `@${user.at}`,
                         total: customTotal
                     }
                 }
             ];
         }
-
+        console.log(payload);
         const method = id ? 'PUT' : 'POST';
         const url = id ? `https://backend/api/order/${id}` : `https://backend/api/order`;
 

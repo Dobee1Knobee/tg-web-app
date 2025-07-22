@@ -4,8 +4,25 @@ import { useMyOrders } from "../../hooks/useMyOrders";
 import { useTelegram } from "../../hooks/useTelegram";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from '../Header/Header';
-import { IoArrowBack, IoRefresh, IoEye, IoCreate, IoCall, IoLocation, IoPerson, IoCalendar, IoCard, IoCheckmarkCircle, IoTimeOutline } from 'react-icons/io5';
-import { BsCardText } from 'react-icons/bs';
+import {
+    IoArrowBack,
+    IoRefresh,
+    IoEye,
+    IoCreate,
+    IoCall,
+    IoLocation,
+    IoPerson,
+    IoCalendar,
+    IoCard,
+    IoCheckmarkCircle,
+    IoTimeOutline,
+    IoClose,
+    IoWarning,
+    IoShieldCheckmark,
+    IoCopy,
+    IoIdCard,
+    IoArrowForward
+} from 'react-icons/io5';
 
 const OwnOrders = () => {
     const { isLoading, orders, error, myOrders, refetchOrders } = useMyOrders();
@@ -15,6 +32,20 @@ const OwnOrders = () => {
 
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
+    const [selectedOrder, setSelectedOrder] = useState(null);
+    const [showModal, setShowModal] = useState(false);
+    const [needToBeTransfered, setNeedToBeTransfered] = useState(false);
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState(null);
+    const [selectedTeam, setSelectedTeam] = useState('');
+
+    // Список команд
+    const teams = [
+        { id: 'A', name: 'TEAM1' },
+        { id: 'B', name: 'TEAM2' },
+        { id: 'C', name: 'TEAM3' },
+        { id: 'W', name: 'TEAM11' }
+    ];
 
     useEffect(() => {
         myOrders(telegramUsername);
@@ -23,6 +54,20 @@ const OwnOrders = () => {
     const handleRefresh = () => {
         myOrders(telegramUsername);
     };
+
+    useEffect(() => {
+        const handleEscapeKey = (event) => {
+            if (event.key === 'Escape' && (showModal || showTransferModal)) {
+                closeModal();
+                closeTransferModal();
+            }
+        };
+
+        document.addEventListener('keydown', handleEscapeKey);
+        return () => {
+            document.removeEventListener('keydown', handleEscapeKey);
+        };
+    }, [showModal, showTransferModal]);
 
     const getStatusColor = (status) => {
         const statusColors = {
@@ -67,12 +112,10 @@ const OwnOrders = () => {
 
         let filtered = [...orders.orders];
 
-        // Фильтрация
         if (filter !== 'all') {
             filtered = filtered.filter(order => order.text_status === filter);
         }
 
-        // Сортировка
         filtered.sort((a, b) => {
             switch (sortBy) {
                 case 'newest':
@@ -89,6 +132,54 @@ const OwnOrders = () => {
         });
 
         return filtered;
+    };
+
+    const copyToClipboard = async (text) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            console.log('Скопировано в буфер обмена:', text);
+        } catch (err) {
+            console.error('Ошибка копирования:', err);
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+        }
+    };
+
+    const openContactModal = (order) => {
+        setSelectedOrder(order);
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setSelectedOrder(null);
+    };
+
+    const openTransferModal = (order) => {
+        setSelectedOrderForTransfer(order);
+        setShowTransferModal(true);
+        setSelectedTeam('');
+    };
+
+    const closeTransferModal = () => {
+        setShowTransferModal(false);
+        setSelectedOrderForTransfer(null);
+        setSelectedTeam('');
+    };
+
+    const handleTransfer = () => {
+        if (!selectedTeam || !selectedOrderForTransfer) return;
+
+        // Здесь будет логика передачи заказа
+        console.log(`Передаем заказ ${selectedOrderForTransfer.leadId} в команду ${selectedTeam}`);
+
+        // TODO: Добавить API вызов для передачи заказа
+
+        closeTransferModal();
     };
 
     const getUniqueStatuses = () => {
@@ -291,7 +382,7 @@ const OwnOrders = () => {
                                 <div className="card h-100 shadow-sm">
                                     <div className="card-header d-flex justify-content-between align-items-center">
                                         <div>
-                                            <strong>ID: {order.leadId || order.order_id || 'N/A'}</strong>
+                                            <strong>ID:{order.leadId || order.order_id || 'N/A'}</strong>
                                         </div>
                                         <span
                                             className="badge rounded-pill px-3"
@@ -312,8 +403,8 @@ const OwnOrders = () => {
 
                                         <div className="mb-2">
                                             <small className="text-muted">
-                                                <BsCardText className="me-1" />
-                                                Сlient ID:{order.client_id}
+                                                <IoIdCard className="me-1" />
+                                                Client ID: #c{order.client_id}
                                             </small>
                                         </div>
 
@@ -353,9 +444,37 @@ const OwnOrders = () => {
                                                 <h6 className="text-muted mb-2">Услуги:</h6>
                                                 <div className="small">
                                                     {order.services.slice(0, 3).map((service, idx) => (
-                                                        <div key={idx} className="d-flex justify-content-between">
-                                                            <span>{service.label} (x{service.quantity || 1})</span>
-                                                            <span className="fw-bold">{service.price}$</span>
+                                                        <div key={idx} className="d-flex justify-content-between mb-3 p-2 border rounded">
+                                                            {/* Основная услуга */}
+                                                            <div className="flex-grow-1 me-3">
+                                                                <div className="fw-bold">{service.label}</div>
+                                                                <small className="text-muted">Количество: {service.count || 1}</small>
+                                                                <div className="fw-bold text-primary">${service.price * service.count} </div>
+                                                            </div>
+
+                                                            {/* Дополнительные услуги */}
+                                                            <div className="text-end">
+                                                                {service.addons && service.addons.map((addon, addonIdx) => (
+                                                                    <div key={addonIdx} className="mb-1">
+                                                                        <small className="text-muted d-block">{addon.label}</small>
+                                                                        <small className="text-success">+${addon.price}</small>
+                                                                    </div>
+                                                                ))}
+
+                                                                {service.mountType && (
+                                                                    <div className="mb-1">
+                                                                        <small className="text-muted d-block">Mount: {service.mountType}</small>
+                                                                        <small className="text-muted d-block">Количество: {service.count}</small>
+                                                                        <small className="text-info">+${service.mountPrice * service.count}</small>
+                                                                    </div>
+                                                                )}
+
+                                                                {service.addonsPrice > 0 && (
+                                                                    <div className="fw-bold text-success mt-2">
+                                                                        Доп: +${service.addonsPrice}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     ))}
                                                     {order.services.length > 3 && (
@@ -374,11 +493,8 @@ const OwnOrders = () => {
                                         <div className="btn-group" role="group">
                                             <button
                                                 className="btn btn-outline-primary btn-sm"
-                                                onClick={() => {
-                                                    // Показать детали заказа (можно реализовать модальное окно)
-                                                    alert(`Детали заказа ${order.leadId}:\n${JSON.stringify(order, null, 2)}`);
-                                                }}
-                                                title="Просмотреть детали"
+                                                onClick={() => openContactModal(order)}
+                                                title="Просмотреть контакты"
                                             >
                                                 <IoEye />
                                             </button>
@@ -389,6 +505,15 @@ const OwnOrders = () => {
                                             >
                                                 <IoCreate />
                                             </button>
+                                            {order.text_status === 'Другой регион' && (
+                                                <button
+                                                    className="btn btn-outline-info btn-sm"
+                                                    onClick={() => openTransferModal(order)}
+                                                    title="Передать в другую команду"
+                                                >
+                                                    <IoArrowForward />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -409,7 +534,7 @@ const OwnOrders = () => {
                         </p>
                         <button
                             className="btn btn-primary"
-                            onClick={() => navigate('/order-change')}
+                            onClick={() => navigate('/form')}
                         >
                             <IoCreate className="me-2" />
                             Создать первый заказ
@@ -417,6 +542,226 @@ const OwnOrders = () => {
                     </div>
                 )}
             </div>
+
+            {/* Модальное окно для контактов */}
+            {showModal && selectedOrder && (
+                <div
+                    className="modal fade show"
+                    style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+                    onClick={closeModal}
+                >
+                    <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-content">
+                            <div className="modal-header bg-primary text-white">
+                                <h5 className="modal-title">
+                                    <IoShieldCheckmark className="me-2" />
+                                    Конфиденциальные контакты
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={closeModal}
+                                ></button>
+                            </div>
+
+                            <div className="modal-body">
+                                <div className="text-center mb-4">
+                                    <h6 className="text-muted">Заказ #{selectedOrder.leadId || selectedOrder.order_id}</h6>
+                                    <h5>{selectedOrder.leadName || 'Имя не указано'}</h5>
+                                </div>
+
+                                {/* Контактная информация */}
+                                <div className="row mb-4">
+                                    <div className="col-12">
+                                        <div className="card bg-light">
+                                            <div className="card-body text-center">
+                                                <h6 className="card-title">
+                                                    <IoCall className="me-2 text-success" />
+                                                    Номер телефона
+                                                </h6>
+                                                <h4 className="text-primary mb-3">
+                                                    {formatPhone(selectedOrder.phone) || 'Не указан'}
+                                                </h4>
+                                                <button
+                                                    className="btn btn-outline-primary btn-sm me-2"
+                                                    onClick={() => copyToClipboard(selectedOrder.phone, 'Номер телефона')}
+                                                    disabled={!selectedOrder.phone}
+                                                >
+                                                    <IoCopy className="me-1" />
+                                                    Копировать
+                                                </button>
+                                                <a
+                                                    href={`tel:${selectedOrder.phone}`}
+                                                    className="btn btn-success btn-sm"
+                                                    disabled={!selectedOrder.phone}
+                                                >
+                                                    <IoCall className="me-1" />
+                                                    Позвонить
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Client ID для коммуникации */}
+                                {selectedOrder.client_id && (
+                                    <div className="row mb-4">
+                                        <div className="col-12">
+                                            <div className="card bg-info-subtle">
+                                                <div className="card-body text-center">
+                                                    <h6 className="card-title">
+                                                        <IoPerson className="me-2 text-info" />
+                                                        ID клиента для коммуникации
+                                                    </h6>
+                                                    <h5 className="text-info mb-2">#c{selectedOrder.client_id}</h5>
+                                                    <button
+                                                        className="btn btn-outline-info btn-sm"
+                                                        onClick={() => copyToClipboard(selectedOrder.client_id, 'Client ID')}
+                                                    >
+                                                        <IoCopy className="me-1" />
+                                                        Копировать ID
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Дополнительная информация */}
+                                {selectedOrder.address && (
+                                    <div className="mb-3">
+                                        <strong>📍 Адрес:</strong>
+                                        <p className="mb-0">{selectedOrder.address}</p>
+                                    </div>
+                                )}
+
+                                {selectedOrder.city && (
+                                    <div className="mb-3">
+                                        <strong>🏙️ Город:</strong>
+                                        <p className="mb-0">{selectedOrder.city}</p>
+                                    </div>
+                                )}
+
+                                {/* Предупреждение о конфиденциальности */}
+                                <div className="alert alert-warning d-flex align-items-start" role="alert">
+                                    <IoWarning className="me-2 mt-1 flex-shrink-0" size={20} />
+                                    <div>
+                                        <h6 className="alert-heading mb-2"> Важно!</h6>
+                                        <p className="mb-2">
+                                            <strong>Номер телефона </strong>  не должен передаваться другим менеджерам или третьим лицам.
+                                        </p>
+                                        <p className="mb-0">
+                                            Для внутренней коммуникации и передачи информации о клиенте используйте <strong>Client ID: #c{selectedOrder.client_id || 'N/A'}</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Модальное окно для передачи заказа */}
+            {showTransferModal && selectedOrderForTransfer && (
+                <div
+                    className="modal fade show"
+                    style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}
+                    onClick={closeTransferModal}
+                >
+                    <div className="modal-dialog modal-dialog-centered" onClick={(e) => e.stopPropagation()}>
+                        <div className="modal-content">
+                            <div className="modal-header bg-info text-white">
+                                <h5 className="modal-title">
+                                    <IoArrowForward className="me-2" />
+                                    Передать заказ в другую команду
+                                </h5>
+                                <button
+                                    type="button"
+                                    className="btn-close btn-close-white"
+                                    onClick={closeTransferModal}
+                                ></button>
+                            </div>
+
+                            <div className="modal-body">
+                                <div className="text-center mb-4">
+                                    <h6 className="text-muted">Заказ #{selectedOrderForTransfer.leadId || selectedOrderForTransfer.order_id}</h6>
+                                    <h5>{selectedOrderForTransfer.leadName || 'Имя не указано'}</h5>
+                                    <span
+                                        className="badge"
+                                        style={{
+                                            backgroundColor: getStatusColor(selectedOrderForTransfer.text_status),
+                                            color: '#000'
+                                        }}
+                                    >
+                                        {selectedOrderForTransfer.text_status}
+                                    </span>
+                                </div>
+
+                                {/* Выбор команды */}
+                                <div className="mb-4">
+                                    <label className="form-label fw-bold">Выберите команду для передачи:</label>
+                                    <select
+                                        className="form-select"
+                                        value={selectedTeam}
+                                        onChange={(e) => setSelectedTeam(e.target.value)}
+                                    >
+                                        <option value="">-- Выберите команду --</option>
+                                        {teams.map(team => (
+                                            <option key={team.id} value={team.id}>{team.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Информация о заказе */}
+                                <div className="card bg-light mb-4">
+                                    <div className="card-body">
+                                        <h6 className="card-title">Детали заказа:</h6>
+                                        <div className="row">
+                                            <div className="col-6">
+                                                <small className="text-muted">Client ID:</small>
+                                                <div className="fw-bold">#c{selectedOrderForTransfer.client_id}</div>
+                                            </div>
+                                            <div className="col-6">
+                                                <small className="text-muted">Сумма:</small>
+                                                <div className="fw-bold text-success">${selectedOrderForTransfer.total || 0}</div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <small className="text-muted">Адрес:</small>
+                                            <div>{selectedOrderForTransfer.address || selectedOrderForTransfer.city || 'Не указан'}</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Предупреждение */}
+                                <div className="alert alert-warning" role="alert">
+                                    <IoWarning className="me-2" />
+                                    <strong>Внимание!</strong> После передачи заказ будет перемещен в выбранную команду и станет недоступен для редактирования.
+                                </div>
+                            </div>
+
+                            <div className="modal-footer">
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={closeTransferModal}
+                                >
+                                    Отмена
+                                </button>
+                                <button
+                                    type="button"
+                                    className="btn btn-info"
+                                    onClick={handleTransfer}
+                                    disabled={!selectedTeam}
+                                >
+                                    <IoArrowForward className="me-1" />
+                                    Передать заказ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

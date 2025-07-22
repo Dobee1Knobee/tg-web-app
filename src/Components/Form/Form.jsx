@@ -190,6 +190,7 @@ const Form = () => {
         message: "",
         price: "",
         mountType: "",
+        mountCount: "",
         mountPrice: 0,
         materials:[],
         addons : [],
@@ -224,6 +225,8 @@ const Form = () => {
             message: "",
             price: "",
             mountType: "",
+            mountCount: "",
+
             mountPrice: 0,
             materials: [],
             materialPrice:0,
@@ -250,6 +253,8 @@ const Form = () => {
             message: "",
             price: "",
             mountType: "",
+            mountCount: "",
+
             mountPrice: 0,
             addons : [],
             addonsPrice: 0,
@@ -464,6 +469,8 @@ const Form = () => {
             message: s.message || "",
             price: Number(s.price || 0),
             mountType: s.mountType || "",
+            mountCount: s.mountCount || 1,
+
             mountPrice: Number(s.mountPrice || 0),
             materialPrice: Number(s.materialPrice || 0),
             addonsPrice: Number(s.addonsPrice || 0),
@@ -840,11 +847,16 @@ const Form = () => {
                                 <span>
                                     📺  Диагональ: <b>{s.diagonal}"</b> <br/>
                                     🔢  Количество: <b>{s.count}</b> <br/>
-                                    🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label}</b><br/>
+                                    🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label} (${s.price} * {s.count}) </b><br/>
                                     { s.mountType && (
-                                        <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b> — 💲{s.mountPrice}</div>
+                                        <div>
+                                        <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b>  </div>
+                                        <div style={{marginLeft:"2.2vh"}}> Количество: <b>{ s.mountCount} </b>  </div>
+                                        <div style={{marginLeft:"2.2vh"}}>Итого:💲{s.mountPrice * s.mountCount}</div>
+
+                                        </div>
                                     )}
-                                    {s.price && <>💵 Стоимость  <b>{s.price} $</b></>}
+
                                     {s.message && <div>📝 Комментарий: {s.message}</div>}
                                     {s.materials?.length > 0 && (
                                         <div>
@@ -1115,7 +1127,9 @@ const Form = () => {
                                                     ...currentService,
                                                     mountType: value,
                                                     mountPrice: selectedMount?.price  || 0,
-                                                });
+                                                    mountCount: currentService.count,
+
+                                            });
 
                                             }}
                                         >
