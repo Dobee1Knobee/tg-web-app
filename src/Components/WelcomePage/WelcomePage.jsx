@@ -78,8 +78,8 @@ const WelcomePage = () => {
                             Найти существующий заказ
                         </button>
                         <button className="btn btn-success w-100" onClick={() => navigate('/OwnOrders')}>Мои заказы</button>
-                        <button className="btn btn-info w-100 mt-3" onClick={() => navigate('/OwnOrders')}>Буфер непринятых заказов</button>
-                        <button className="btn btn-danger w-100 mt-3" onClick={() => navigate('/OwnOrders')}>Аналитика</button>
+                        <button className="btn btn-info w-100 mt-3" onClick={() => navigate('/BuferedOrders')}>Буфер непринятых заказов</button>
+                        <button className="btn btn-danger w-100 mt-3" onClick={() => navigate('/BuferedOrders')}>Аналитика</button>
 
 
                     </div>

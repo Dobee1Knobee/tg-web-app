@@ -8,6 +8,7 @@ import { Route, Routes } from "react-router-dom";
 import WelcomePage from "./Components/WelcomePage/WelcomePage";
 import OrderChange from "./Components/SearchAndChange/OrderChange";
 import OwnOrders from "./Components/OwnOrders /OwnOrders";
+import BuferedOrders from "./Components/BuferedOrders/BuferedOrders";
 
 function App() {
     const { tg } = useTelegram();
@@ -22,6 +23,7 @@ function App() {
                 <Route index element={<WelcomePage />} />
                 <Route path="/form" element={<Form />} />
                 <Route path="/ownOrders" element={<OwnOrders />} />
+                <Route path="/buferedOrders" element={<BuferedOrders />} />
 
                 <Route path="/change/:leadId" element={<Form />} />
             </Routes>
