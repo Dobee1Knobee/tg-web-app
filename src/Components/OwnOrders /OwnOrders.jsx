@@ -558,15 +558,17 @@ const OwnOrders = () => {
                                                                 {service.addons && service.addons.map((addon, addonIdx) => (
                                                                     <div key={addonIdx} className="mb-1">
                                                                         <small className="text-muted d-block">{addon.label}</small>
-                                                                        <small className="text-success">+${addon.price}</small>
+                                                                        <small className="text-muted d-block">Количество: {addon.count}</small>
+
+                                                                        <small className="text-success">+${addon.price * addon.count}</small>
                                                                     </div>
                                                                 ))}
 
                                                                 {service.mountType && (
                                                                     <div className="mb-1">
                                                                         <small className="text-muted d-block">Mount: {service.mountType}</small>
-                                                                        <small className="text-muted d-block">Количество: {service.count}</small>
-                                                                        <small className="text-info">+${service.mountPrice * service.count}</small>
+                                                                        <small className="text-muted d-block">Количество: {service.mountCount}</small>
+                                                                        <small className="text-info">+${service.mountPrice * service.mountCount}</small>
                                                                     </div>
                                                                 )}
 

@@ -7,11 +7,12 @@ import { useSubmitOrder } from "../../hooks/useSubmitOrders";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from "../Header/Header";
 import {IoArrowBack, IoArrowBackCircle} from "react-icons/io5";
-import {useNavigate} from "react-router-dom";
+import {useLocation, useNavigate} from "react-router-dom";
 import { useParams } from "react-router-dom";
 import {useCheckOrder} from "../../hooks/useCheckOrder";
+import {useGetClient} from "../../hooks/useGetNumbersOfClient";
 const workTypes = [
-     { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
+    { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
     { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
 ];
@@ -74,10 +75,16 @@ const Form = () => {
     const [displayValue, setDisplayValue] = useState('');
     const { leadId } = useParams();
     const { response: checkResponse, error: checkError, loading, checkOrder } = useCheckOrder();
-
+    const [callType, setCallType] = useState(null); // 'inbound', 'outgoing', or null
+    const [orderIdInput, setOrderIdInput] = useState(""); // New state for Order ID input
     const [isWeOwnerMount, setIsWeOwnerMount] = useState(false);
     const [mountData,setMountData] = useState({});
     const { submitOrder, isLoading, error, response } = useSubmitOrder();
+    const [additionalTelephones, setAdditionalTelephones] = useState([]);
+    const [newPhoneNumber, setNewPhoneNumber] = useState('');
+    const [newPhoneLabel, setNewPhoneLabel] = useState('');
+    const [isAddingPhone, setIsAddingPhone] = useState(false);
+    const { response: clientData, error: clientError, loading: clientLoading, getClient } = useGetClient();
 
     const formatPhoneNumber = (value) => {
         // Удаляем всё, кроме цифр
@@ -108,7 +115,35 @@ const Form = () => {
         setDisplayValue(formatPhoneNumber(input));// сюда красиво отформатированное
         checkOrder(cleaned);
     };
+// Добавить после функции handleChange
+    const handleAddPhoneNumber = () => {
+        if (newPhoneNumber.trim() && newPhoneLabel.trim()) {
+            const digits = newPhoneNumber.replace(/\D/g, '');
+            const cleaned = digits.startsWith('1') ? digits.slice(1) : digits;
 
+            setAdditionalTelephones([
+                ...additionalTelephones,
+                {
+                    type: cleaned, // только цифры
+                    label: newPhoneLabel
+                }
+            ]);
+
+            setNewPhoneNumber('');
+            setNewPhoneLabel('');
+            setAddingTelephone(false);
+
+        }
+    };
+
+    const handleRemovePhoneNumber = (index) => {
+        setAdditionalTelephones(additionalTelephones.filter((_, i) => i !== index));
+    };
+
+    const handleNewPhoneChange = (e) => {
+        const input = e.target.value;
+        setNewPhoneNumber(formatPhoneNumber(input));
+    };
     const { user } = useTelegram();
     const telegramUsername = user?.username || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
@@ -130,13 +165,104 @@ const Form = () => {
             setOwnerUsername(`@${telegramUsername}`);
         }
     }, [mongoUser, telegramUsername]);
+    const [isLoadingOrder, setIsLoadingOrder] = useState(false);
+    const [found,setFound] = useState(false);
+    const [addingTelephone, setAddingTelephone] = useState(false);
+    const [clientId, setClientId] = useState("");
+    useEffect(() => {
+        const fetchFormAndClient = async () => {
+            console.log("⚡ useEffect triggered, orderIdInput:", orderIdInput);
 
+            setIsLoadingOrder(true);
+
+            try {
+                console.log("orderIdInput из фронта:", orderIdInput);
+                const response = await fetch("https://bot-crm-backend-756832582185.us-central1.run.app/api/getForm", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        at: telegramUsername,
+                        form_id: orderIdInput
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.form) {
+                    setPhoneNumberLead(data.form.telephone);
+                    setDisplayValue(formatPhoneNumber(data.form.telephone));
+                    setClientId(data.form.client_id);
+
+                    // ✅ НОВОЕ: Автоматически загружаем номера клиента
+                    if (data.client_id && data.client_id !== clientId) {
+                        console.log(`📞 Устанавливаем client_id ${data.client_id}`);
+                        setClientId(data.client_id);
+                    }
+
+
+
+                    setFound(true);
+                } else {
+                    console.error("Ошибка:", data.error || "Форма не найдена");
+                }
+            } catch (error) {
+                console.error("Ошибка при получении формы:", error);
+            } finally {
+                setIsLoadingOrder(false);
+            }
+        };
+
+        if (orderIdInput) {
+            fetchFormAndClient();
+        }
+    }, [orderIdInput, telegramUsername]);
+
+// ✅ НОВЫЙ useEffect для обработки полученных данных клиента
+    const [phonesLoaded, setPhonesLoaded] = useState(false);
+
+    useEffect(() => {
+        if (!clientData || !clientData.success || phonesLoaded) return;
+
+        setIsLoadingOrder(true);
+        console.log("📞 Данные клиента получены:", clientData);
+
+        if (Array.isArray(clientData.additionalTelephones) && clientData.additionalTelephones.length > 0) {
+            console.log(`📞 Загружено ${clientData.additionalTelephones.length} дополнительных номеров из базы`);
+
+            setAdditionalTelephones(prevPhones => {
+                const existingNumbers = prevPhones.map(p => p.type);
+                const newPhones = clientData.additionalTelephones.filter(phone =>
+                    !existingNumbers.includes(phone.type)
+                );
+
+                if (newPhones.length > 0) {
+                    console.log(`📞 Добавлено ${newPhones.length} новых номеров из базы`);
+                    return [...prevPhones, ...newPhones];
+                }
+
+                return prevPhones;
+            });
+        } else {
+            console.log("📞 У клиента нет дополнительных номеров в базе");
+        }
+
+        setPhonesLoaded(true); // больше не выполнять
+        setIsLoadingOrder(false);
+    }, [clientData, phonesLoaded]);
+
+    const [fetchedClientId, setFetchedClientId] = useState(null);
+
+// ✅ НОВЫЙ useEffect для загрузки номеров при редактировании заказа по leadId
     useEffect(() => {
         if (!leadId) return;
 
-        fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`)
-            .then(res => res.json())
-            .then((data) => {
+        const fetchOrderAndClient = async () => {
+            try {
+                const response = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`);
+                const data = await response.json();
+
                 setUpdateOrder(true);
                 setStatus(data.text_status || "");
                 setLeadName(data.leadName || "");
@@ -148,15 +274,32 @@ const Form = () => {
                 setSelectedMaster(data.master || "");
                 setServices(data.services || []);
 
+                // Устанавливаем дополнительные телефоны из заказа
+                if (data.additionalTelephone && Array.isArray(data.additionalTelephone)) {
+                    setAdditionalTelephones(data.additionalTelephone);
+                }
+
+                // ✅ НОВОЕ: Если есть client_id в заказе, загружаем актуальные номера клиента
+                if (data.client_id && data.client_id !== clientId) {
+                    console.log(`📞 Устанавливаем client_id ${data.client_id}`);
+                    setClientId(data.client_id);
+                }
+
+
+
                 const isoDate = new Date(data.date);
                 const date = isoDate.toISOString().split("T")[0];
                 const time = isoDate.toTimeString().slice(0, 5);
                 setDataLead(`${date}T${time}`);
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("❌ Ошибка при загрузке заказа по leadId:", err);
-            });
-    }, [leadId]);
+            }
+        };
+
+        fetchOrderAndClient();
+    }, [leadId, getClient]);
+    // Добавил telegramUsername в зависимости
+
 
     const [showTechChoice, setShowTechChoice] = useState(false);
     const [status, setStatus] = useState("");
@@ -166,6 +309,7 @@ const Form = () => {
     const [services, setServices] = useState([]);
     const [customTotal, setCustomTotal] = useState(null);
     const [isEditingTotal, setIsEditingTotal] = useState(false);
+    const { pathname } = useLocation();
 
     const [isAddingAddons, setIsAddingAddons] = useState(false);
 
@@ -180,6 +324,14 @@ const Form = () => {
         const time = now.toTimeString().split(":").slice(0, 2).join(":"); // "17:38"
         return `${date}T${time}`; // → "2025-05-17T17:38"
     });
+    useEffect(() => {
+        if (clientId && clientId !== fetchedClientId) {
+            console.log(`📞 Загружаем номера для клиента ${clientId}`);
+            getClient(clientId);
+            setFetchedClientId(clientId);
+        }
+    }, [clientId, fetchedClientId, getClient]);
+
     const [commentOrder,setCommentOrder] = useState("");
     const [selectedMaster, setSelectedMaster] = useState("");
     const [currentService, setCurrentService] = useState({
@@ -205,7 +357,7 @@ const Form = () => {
     const getSheetUrlByTeam = (team) => {
         switch (team) {
             case "A": return 'https://script.google.com/macros/s/AKfycbzZb8N6sHhrYa0J3nbd66RvRIp71HDbgU2eKDjlSHp1eUPHPpITLTkCvuU9nAqToUyN/exec';
-            case "B": return 'https://script.google.com/macros/s/AKfycbx2s4Yn5fy6vbDq8ceDl6IKICqCm37GKTLa27K9fqnVnpTgVv8YneGBlMX0gp0C9zvL/exec';
+            case "B": return 'https://script.google.com/macros/s/AKfycbx2s4Yn5fy6vbDq8ceDl6IKICxCm37GKTLa27K9fqnVnpTgVv8YneGBlMX0gp0C9zvL/exec';
             case "C": return 'https://script.google.com/macros/s/AKfycbzxEa9aTzD_TZWYhdBtJu6_oNQqLvg9zKbMzVRYIiKkwj16w_ri4-BQ-OHQMLFAYqBr_w/exec';
             case "W":return 'https://script.google.com/macros/s/AKfycbwrEH4SU2-Gm3yCXngh8NytxmDcwIcV64ZiCSTu4moUHSfEx5RZvILBofdlN55CMAmnfA/exec';
             default: return 'https://script.google.com/macros/s/AKfycbw7Ro5gCbzIdZDJc4qgvyJivIRO7dejmX6tpal2vP-dCltLfj8eDF0GShhdTTQKnZKZig/exec';
@@ -382,6 +534,7 @@ const Form = () => {
         const payloadForMongo = {
             owner: `${telegramUsername}`,
             team: team_id,
+            client_id: clientId,
             manager_id,
             text_status: status,
             leadName,
@@ -391,10 +544,11 @@ const Form = () => {
             city,
             master: selectedMaster,
             comment: commentOrder,
+            additionalTelephone: additionalTelephones,
             total,
-            services,
-            // leadId НЕ отправляем
+            services: servicesWithMountCount, // вот сюда вставляем обновлённые услуги
         };
+
 
         console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
 
@@ -419,6 +573,9 @@ const Form = () => {
             phone: phoneNumberLead,
             date: formattedDateSheets,
             city,
+            additionalTelephone: additionalTelephones, // ← Добавить эту строку
+            client_id: clientId,
+
             master: selectedMaster,
             comment: commentOrder,
             total,
@@ -444,6 +601,13 @@ const Form = () => {
             alert(`⚠️ Заказ сохранен в базу (ID: ${finalLeadId}), но возникла ошибка при отправке в Google Sheets`);
         }
     };
+    const [mountCount,setMountCount] = useState(0);
+    const servicesWithMountCount = services.map(s => ({
+        ...s,
+        mountCount: s.mountCount || 0,          // если нет — ставим 0
+        mountType: s.mountType || '',           // на всякий случай
+        mountPrice: s.mountPrice || 0
+    }));
 
 
     const updateOrderInMongoAndSheets = async () => {
@@ -495,6 +659,7 @@ const Form = () => {
         const payloadUpdate = {
             owner: telegramUsername,
             status,
+            formId : setOrderIdInput,
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
@@ -505,6 +670,10 @@ const Form = () => {
             total,
             services: filteredServices,
             leadId: currentLeadId,
+            mountCount : mountCount,
+            client_id: clientId,
+
+            additionalTelephone: additionalTelephones,
         };
 
         console.log('🔍 addressLead value:', addressLead);
@@ -570,6 +739,7 @@ const Form = () => {
                 text_status: status,
                 leadName,
                 address: addressLead,
+                additionalTelephone: additionalTelephones,
                 phone: phoneNumberLead,
                 date: formattedDateSheets, // ← GMT+0
                 city,
@@ -702,17 +872,49 @@ const Form = () => {
                     onChange={(e) => setAddressLead(e.target.value)}
                 />
             </div>
-            <div className="mb-3">
-                <input
-                    className="form-control"
-                    type="text"
-                    placeholder="Номер"
-                    value={displayValue}
-                    onChange={handleChange}
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    autoComplete="tel"
-                />
+            {/* Conditional rendering based on callType */}
+            <div className="mb-3 d-flex flex-row gap-2 mx-auto">
+                {!callType && !pathname.includes("/change/") && (
+                    <>
+                        <button
+                            className="btn btn-success d-flex align-items-center justify-content-center w-100"
+                            onClick={() => setCallType('inbound')}
+                        >
+                            <i className="bi bi-telephone-inbound-fill me-2"></i>
+                            Входящий
+                        </button>
+                        <button
+                            className="btn btn-danger d-flex align-items-center justify-content-center w-100"
+                            onClick={() => setCallType('outgoing')}
+                        >
+                            <i className="bi bi-telephone-outbound-fill me-2"></i>
+                            Исходящий
+                        </button>
+                    </>
+                )}
+
+                {callType === 'inbound'  && (
+                    <input
+                        className="form-control"
+                        type="text"
+                        placeholder="Номер телефона"
+                        value={displayValue}
+                        onChange={handleChange}
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="tel"
+                    />
+                )}
+
+                {callType === 'outgoing' && (
+                    <input
+                        className="form-control"
+                        type="text"
+                        placeholder="Номер заказа"
+                        value={orderIdInput}
+                        onChange={(e) => setOrderIdInput(e.target.value)}
+                    />
+                )}
             </div>
             {checkResponse?.orders?.length > 0  && !creatingNewOrChanging && (
                 <div className="mt-3 mb-3">
@@ -734,16 +936,139 @@ const Form = () => {
                                     }}
                                 >
 
-                                Открыть
+                                    Открыть
                                 </button>
                             </li>
                         ))}
                     </ul>
                 </div>
             )}
+            {isLoadingOrder && (
+                <div className="d-flex justify-content-center align-items-center mb-4">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Загрузка...</span>
+                    </div>
+                    <span className="ms-2">Поиск номера телефона...</span>
+                </div>
+            )}
+            {(found || pathname.includes("/change/")) && (
+                <div className="container d-flex flex-column">
+                    {/* Основной номер */}
+                    <div className="mb-3">
+                        <label className="form-label">Основной номер:</label>
+                        <input
+                            className="form-control"
+                            type="text"
+                            readOnly={true}
+                            value={`+1${phoneNumberLead}`}
+                        />
+                    </div>
+
+                    {clientLoading && (
+                        <div className="d-flex align-items-center mb-3">
+                            <div className="spinner-border spinner-border-sm me-2" role="status"></div>
+                            <span>Загружаем дополнительные номера...</span>
+                        </div>
+                    )}
+
+                    {clientError && (
+                        <div className="alert alert-warning mb-3">
+                            ⚠️ Не удалось загрузить дополнительные номера: {clientError}
+                        </div>
+                    )}
+
+                    {additionalTelephones.length > 0 && (
+                        <div className="card p-3 mb-3">
+                            <strong>Дополнительные номера:</strong>
+                            <ul className="list-group list-group-flush">
+                                {additionalTelephones.map((phone, index) => (
+                                    <li key={index} className="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <div>
+                                            <strong>+1{phone.type}</strong>
+                                            <span className="text-muted ms-2">({phone.label})</span>
+                                        </div>
+                                        <button
+                                            className="btn btn-outline-danger btn-sm"
+                                            onClick={() => handleRemovePhoneNumber(index)}
+                                        >
+                                            🗑️
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+
+                    {!addingTelephone ? (
+                        <button
+                            className="btn btn-success mx-auto w-50 mt-3"
+                            onClick={() => setAddingTelephone(true)}
+                        >
+                            <i>➕ Добавить дополнительный номер</i>
+                        </button>
+                    ) : (
+                        <div className="card p-3 mb-3 mt-3">
+                            <div className="p-3 position-relative">
+                                <button
+                                    type="button"
+                                    className="btn-close position-absolute top-0 end-0"
+                                    aria-label="Close"
+                                    onClick={() => {
+                                        setAddingTelephone(false);
+                                        setNewPhoneNumber('');
+                                        setNewPhoneLabel('');
+                                    }}
+                                ></button>
+                            </div>
+
+                            <h5>Добавить дополнительный номер</h5>
+
+                            <div className="mb-3">
+                                <input
+                                    className="form-control mb-2"
+                                    type="text"
+                                    placeholder="Номер телефона"
+                                    value={newPhoneNumber}
+                                    onChange={handleNewPhoneChange}
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    autoComplete="tel"
+                                />
+                                <input
+                                    className="form-control"
+                                    type="text"
+                                    placeholder="Подпись (например: Жена, Муж, Работа)"
+                                    value={newPhoneLabel}
+                                    onChange={(e) => setNewPhoneLabel(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="d-flex gap-2">
+                                <button
+                                    className="btn btn-primary btn-sm"
+                                    onClick={handleAddPhoneNumber}
+                                >
+                                    Сохранить
+                                </button>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                        setAddingTelephone(false);
+                                        setNewPhoneNumber('');
+                                        setNewPhoneLabel('');
+                                    }}
+                                >
+                                    Отмена
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
 
 
-            <div className="mb-3">
+
+            <div className="mb-3 mt-3">
                 <div className="d-flex gap-2 mb-3">
                     <input
                         className="form-control"
@@ -843,7 +1168,7 @@ const Form = () => {
                 <div className="mt-4">
                     <h4>Добавленные услуги:</h4>
                     <ul className="list-group">
-                        {services.map((s, i) => (
+                        {servicesWithMountCount.map((s, i) => (
                             <li
                                 key={i}
                                 className="list-group-item d-flex justify-content-between align-items-center"
@@ -854,9 +1179,9 @@ const Form = () => {
                                     🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label} (${s.price} * {s.count}) </b><br/>
                                     { s.mountType && (
                                         <div>
-                                        <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b>  </div>
-                                        <div style={{marginLeft:"2.2vh"}}> Количество: <b>{ s.mountCount} </b>  </div>
-                                        <div style={{marginLeft:"2.2vh"}}>Итого:💲{s.mountPrice * s.mountCount}</div>
+                                            <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b>  </div>
+                                            <div style={{marginLeft:"2.2vh"}}> Количество: <b>{ s.mountCount} </b>  </div>
+                                            <div style={{marginLeft:"2.2vh"}}>Итого:💲{s.mountPrice * s.mountCount}</div>
 
                                         </div>
                                     )}
@@ -1117,7 +1442,7 @@ const Form = () => {
                                     </div>
                                 </div>
                                 {!isWeOwnerMount && (
-                                    <div>
+                                    <div className={"d-flex flex-row"}>
 
                                         <select
                                             className="form-select"
@@ -1131,9 +1456,8 @@ const Form = () => {
                                                     ...currentService,
                                                     mountType: value,
                                                     mountPrice: selectedMount?.price  || 0,
-                                                    mountCount: currentService.count,
 
-                                            });
+                                                });
 
                                             }}
                                         >
@@ -1142,23 +1466,37 @@ const Form = () => {
                                             <option value="titling_mount">Tilting — $49</option>
                                             <option value="full_motion">Full motion — $69</option>
                                         </select>
+                                        <input
+                                            className="form-control"
+                                            name={"count"}
+                                            type="number"
+                                            value={currentService.mountCount || ''}
+                                            onChange={(e) => {
+                                                const count = parseInt(e.target.value, 10);
+                                                setCurrentService({
+                                                    ...currentService,
+                                                    mountCount: isNaN(count) ? 0 : count
+                                                });
+                                            }}
+                                        />
+
                                     </div>
                                 )}
 
                                 {/*<button*/}
-                                {/*    className="btn btn-sm btn-outline-success"*/}
-                                {/*    onClick={() => {*/}
-                                {/*        saveMount();*/}
-                                {/*        setIsAddingMount(false);*/}
-                                {/*    }}*/}
+                                {/* className="btn btn-sm btn-outline-success"*/}
+                                {/* onClick={() => {*/}
+                                {/* saveMount();*/}
+                                {/* setIsAddingMount(false);*/}
+                                {/* }}*/}
                                 {/*>*/}
-                                {/*    💾 Сохранить навес*/}
+                                {/* 💾 Сохранить навес*/}
                                 {/*</button>*/}
 
                             </div>
 
 
-                            )}
+                        )}
                         {currentService.mountData?.length > 0 && (
                             <div className="mb-3">
                                 <h6>🛠️ Дополнительные услуги:</h6>
