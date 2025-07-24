@@ -9,6 +9,7 @@ import WelcomePage from "./Components/WelcomePage/WelcomePage";
 import OrderChange from "./Components/SearchAndChange/OrderChange";
 import OwnOrders from "./Components/OwnOrders /OwnOrders";
 import BuferedOrders from "./Components/BuferedOrders/BuferedOrders";
+import PinCodePage from "./Components/PinCodePage/PinCodePage";
 
 function App() {
     const { tg } = useTelegram();
@@ -20,7 +21,9 @@ function App() {
     return (
         <div className="App">
             <Routes>
-                <Route index element={<WelcomePage />} />
+                <Route index element={<PinCodePage />} />
+
+                <Route  path="/welcomePage" element={<WelcomePage />} />
                 <Route path="/form" element={<Form />} />
                 <Route path="/ownOrders" element={<OwnOrders />} />
                 <Route path="/buferedOrders" element={<BuferedOrders />} />
