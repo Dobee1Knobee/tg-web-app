@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useMyOrders } from "../../hooks/useMyOrders";
 import { useTelegram } from "../../hooks/useTelegram";
+import { useTransferOrder } from "../../hooks/useTransferOrder";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from '../Header/Header';
 import {
@@ -26,10 +27,12 @@ import {
 
 const OwnOrders = () => {
     const { isLoading, orders, error, myOrders, refetchOrders } = useMyOrders();
+    const { transferOrder, error: transferError, giveOrder } = useTransferOrder();
     const { user } = useTelegram();
     const navigate = useNavigate();
-    const telegramUsername = user?.username?.toLowerCase() || "devapi1";
+    const telegramUsername = user?.username || "Balyetca";
 
+    const [note, setNote] = useState('');
     const [filter, setFilter] = useState('all');
     const [sortBy, setSortBy] = useState('newest');
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -47,7 +50,28 @@ const OwnOrders = () => {
         { id: 'W', name: 'TEAM11' }
     ];
 
+    const getBufferStatus = (order) => {
+        if (order.transfer_status === 'in_buffer') {
+            return {
+                isInBuffer: true,
+                teamName: getTeamDisplayName(order.transferred_to_team)
+            };
+        }
+        return { isInBuffer: false };
+    };
+
+    const getTeamDisplayName = (teamQuery) => {
+        switch (teamQuery) {
+            case 'TEAM1': return 'Команда А';
+            case 'TEAM2': return 'Команда Б';
+            case 'TEAM3': return 'Команда В';
+            case 'TEAM11': return 'Команда W';
+            default: return teamQuery;
+        }
+    };
+
     useEffect(() => {
+        console.log(telegramUsername);
         myOrders(telegramUsername);
     }, [telegramUsername]);
 
@@ -163,23 +187,51 @@ const OwnOrders = () => {
         setSelectedOrderForTransfer(order);
         setShowTransferModal(true);
         setSelectedTeam('');
+        setNote('');
     };
 
     const closeTransferModal = () => {
         setShowTransferModal(false);
         setSelectedOrderForTransfer(null);
         setSelectedTeam('');
+        setNote('');
     };
 
-    const handleTransfer = () => {
+    const handleTransfer = async () => {
         if (!selectedTeam || !selectedOrderForTransfer) return;
 
-        // Здесь будет логика передачи заказа
-        console.log(`Передаем заказ ${selectedOrderForTransfer.leadId} в команду ${selectedTeam}`);
+        try {
+            // Формируем объект пользователя для API
+            const fromUserData = {
+                username: user?.username || telegramUsername,
+                name: user?.first_name || user?.username || telegramUsername,
+                at: user?.username || telegramUsername
+            };
 
-        // TODO: Добавить API вызов для передачи заказа
+            const result = await transferOrder(
+                selectedOrderForTransfer.order_id,  // order_id
+                selectedTeam,                       // toTeam
+                fromUserData,                       // fromUser как объект
+                note                               // note
+            );
 
-        closeTransferModal();
+            if (result.success) {
+                // Успешная передача
+                console.log('Заказ успешно передан:', result.message);
+
+                // Закрываем модалку
+                closeTransferModal();
+
+                // Обновляем список заказов
+                myOrders(telegramUsername);
+
+            } else {
+                // Ошибка передачи
+                console.error('Ошибка передачи заказа:', result.error);
+            }
+        } catch (error) {
+            console.error('Произошла ошибка при передаче заказа:', error);
+        }
     };
 
     const getUniqueStatuses = () => {
@@ -384,16 +436,29 @@ const OwnOrders = () => {
                                         <div>
                                             <strong>ID:{order.leadId || order.order_id || 'N/A'}</strong>
                                         </div>
-                                        <span
-                                            className="badge rounded-pill px-3"
-                                            style={{
-                                                backgroundColor: getStatusColor(order.text_status),
-                                                color: '#000',
-                                                fontSize: '0.8em'
-                                            }}
-                                        >
-                                            {order.text_status || 'Без статуса'}
-                                        </span>
+                                        <div className="d-flex gap-2">
+                                            {/* Основной статус */}
+                                            <span
+                                                className="badge rounded-pill px-3"
+                                                style={{
+                                                    backgroundColor: getStatusColor(order.text_status),
+                                                    color: '#000',
+                                                    fontSize: '0.8em'
+                                                }}
+                                            >
+                                                {order.text_status || 'Без статуса'}
+                                            </span>
+
+                                            {/* Статус буфера */}
+                                            {(() => {
+                                                const bufferStatus = getBufferStatus(order);
+                                                return bufferStatus.isInBuffer && (
+                                                    <span className="badge bg-warning text-dark px-2" style={{ fontSize: '0.75em' }}>
+                                                        📤 В буфере {bufferStatus.teamName}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </div>
                                     </div>
                                     <div className="card-body">
                                         <h5 className="card-title">
@@ -646,9 +711,9 @@ const OwnOrders = () => {
                                 <div className="alert alert-warning d-flex align-items-start" role="alert">
                                     <IoWarning className="me-2 mt-1 flex-shrink-0" size={20} />
                                     <div>
-                                        <h6 className="alert-heading mb-2"> Важно!</h6>
+                                        <h6 className="alert-heading mb-2">Важно!</h6>
                                         <p className="mb-2">
-                                            <strong>Номер телефона </strong>  не должен передаваться другим менеджерам или третьим лицам.
+                                            <strong>Номер телефона</strong> не должен передаваться другим менеджерам или третьим лицам.
                                         </p>
                                         <p className="mb-0">
                                             Для внутренней коммуникации и передачи информации о клиенте используйте <strong>Client ID: #c{selectedOrder.client_id || 'N/A'}</strong>
@@ -693,7 +758,7 @@ const OwnOrders = () => {
                                             color: '#000'
                                         }}
                                     >
-                                        {selectedOrderForTransfer.text_status}
+                                        {selectedOrderForTransfer.text_status} {selectedOrderForTransfer.transfer_status}
                                     </span>
                                 </div>
 
@@ -730,8 +795,26 @@ const OwnOrders = () => {
                                             <small className="text-muted">Адрес:</small>
                                             <div>{selectedOrderForTransfer.address || selectedOrderForTransfer.city || 'Не указан'}</div>
                                         </div>
+                                        <div className="mt-3">
+                                            <label className="form-label fw-bold">Заметка (необязательно):</label>
+                                            <textarea
+                                                className="form-control"
+                                                rows="3"
+                                                value={note}
+                                                onChange={(e) => setNote(e.target.value)}
+                                                placeholder="Добавьте комментарий к передаче заказа..."
+                                            />
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Показ ошибки передачи */}
+                                {transferError && (
+                                    <div className="alert alert-danger" role="alert">
+                                        <IoWarning className="me-2" />
+                                        <strong>Ошибка передачи:</strong> {transferError}
+                                    </div>
+                                )}
 
                                 {/* Предупреждение */}
                                 <div className="alert alert-warning" role="alert">
@@ -745,6 +828,7 @@ const OwnOrders = () => {
                                     type="button"
                                     className="btn btn-secondary"
                                     onClick={closeTransferModal}
+                                    disabled={giveOrder === selectedOrderForTransfer?.order_id}
                                 >
                                     Отмена
                                 </button>
@@ -752,10 +836,19 @@ const OwnOrders = () => {
                                     type="button"
                                     className="btn btn-info"
                                     onClick={handleTransfer}
-                                    disabled={!selectedTeam}
+                                    disabled={!selectedTeam || giveOrder === selectedOrderForTransfer?.order_id}
                                 >
-                                    <IoArrowForward className="me-1" />
-                                    Передать заказ
+                                    {giveOrder === selectedOrderForTransfer?.order_id ? (
+                                        <>
+                                            <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                            Передача...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <IoArrowForward className="me-1" />
+                                            Передать заказ
+                                        </>
+                                    )}
                                 </button>
                             </div>
                         </div>

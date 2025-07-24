@@ -16,7 +16,7 @@ const WelcomePage = () => {
     const { response, error, loading, checkOrder } = useCheckOrder();
     const inputRef = useRef(null);
     const { user } = useTelegram();
-    const telegramUsername = user?.username?.toLowerCase() || "devapi1";
+    const telegramUsername = user?.username || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
 
     const formatPhoneNumber = (value) => {

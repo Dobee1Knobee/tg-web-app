@@ -17,7 +17,7 @@ export const useMyOrders = () => {
         console.log(at)
         try {
             console.log(at)
-            const cleanAt = at.replace('@', '').toLowerCase();
+            const cleanAt = at.replace('@', '');
             const url = `https://bot-crm-backend-756832582185.us-central1.run.app/api/user/myOrders/${cleanAt}`;
 
             console.log('🔗 Запрос к URL:', url);

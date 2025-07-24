@@ -12,7 +12,7 @@ const OrderChange = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const { user } = useTelegram();
-    const telegramUsername = user?.username?.toLowerCase() || 'devapi1';
+    const telegramUsername = user?.username || 'devapi1';
     const mongoUser = useUserByAt(telegramUsername);
     const { submitOrder } = useSubmitOrder();
     const [team, setTeam] = useState('');

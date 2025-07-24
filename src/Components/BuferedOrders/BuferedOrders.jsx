@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTakeOrder } from '../../hooks/useTakeOrder';
+import { useTelegram } from "../../hooks/useTelegram";
+import Header from '../Header/Header';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import {
     IoArrowBack,
@@ -10,32 +13,29 @@ import {
     IoCard,
     IoCheckmarkCircle,
     IoTimeOutline,
-    IoWarning,
     IoIdCard,
     IoDownload,
     IoTime,
     IoTrophy,
-    IoAlertCircle
+    IoAlertCircle,
+    IoWarning
 } from 'react-icons/io5';
-// import Header from '../Header/Header';
-// import { useTelegram } from "../../hooks/useTelegram";
+import {useUserByAt} from "../../hooks/findUserByAt";
 
 const BufferOrdersPage = () => {
     const navigate = useNavigate();
-    // const { user } = useTelegram();
+    const { user } = useTelegram();
 
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [takingOrder, setTakingOrder] = useState(null);
     const [selectedOrderForTake, setSelectedOrderForTake] = useState(null);
     const [showTakeModal, setShowTakeModal] = useState(false);
+    const { takeOrder, takingOrder: hookTakingOrder, error: takeError } = useTakeOrder();
 
-    // Демо данные - в реальном приложении получать из контекста/пропсов
-    const [userTeam, setUserTeam] = useState('A');
-    const [userAt, setUserAt] = useState('testuser');
-    // const telegramUsername = user?.username?.toLowerCase() || "devapi1";
-
+    const telegramUsername = user?.username || "devapi1";
+    const userData = useUserByAt(telegramUsername); // Ищем пользователя по at
+    const userTeam = userData?.team || 'A'
     const mapTeamToQuery = (team) => {
         switch (team) {
             case 'A': return 'TEAM1';
@@ -46,6 +46,16 @@ const BufferOrdersPage = () => {
         }
     };
 
+    const getTeamDisplayName = (team) => {
+        switch (team) {
+            case 'A': return 'Команда А';
+            case 'B': return 'Команда B';
+            case 'C': return 'Команда C';
+            case 'W': return 'Команда W';
+            default: return `Команда ${team}`;
+        }
+    };
+
     const fetchBufferOrders = async () => {
         if (!userTeam) return;
 
@@ -53,7 +63,7 @@ const BufferOrdersPage = () => {
         setError(null);
 
         try {
-            const response = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/buffer-orders/${mapTeamToQuery(userTeam)}`);
+            const response = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/buffer-orders/${userTeam}`);
 
             if (!response.ok) {
                 if (response.status === 400) {
@@ -78,29 +88,13 @@ const BufferOrdersPage = () => {
     };
 
     const handleTakeOrder = async (order) => {
-        setTakingOrder(order.order_id);
+        const result = await takeOrder(order.order_id, telegramUsername);
 
-        try {
-            const response = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/takeOrder/${order.order_id}/${userAt}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка при взятии заказа');
-            }
-
+        if (result.success) {
             // Убираем заказ из списка после успешного взятия
             setOrders(prev => prev.filter(o => o.order_id !== order.order_id));
-
-        } catch (err) {
-            console.error('Ошибка при взятии заказа:', err);
-            alert(`Ошибка: ${err.message}`);
-        } finally {
-            setTakingOrder(null);
+        } else {
+            alert(`Ошибка: ${result.error}`);
         }
     };
 
@@ -183,9 +177,9 @@ const BufferOrdersPage = () => {
                     >
                         <IoArrowBack />
                     </button>
-                    {/* <div className="row gap-3">
+                    <div className="row gap-3">
                         <Header />
-                    </div> */}
+                    </div>
                 </div>
                 <div className="d-flex justify-content-center align-items-center" style={{minHeight: '300px'}}>
                     <div className="text-center">
@@ -218,9 +212,9 @@ const BufferOrdersPage = () => {
                     >
                         <IoArrowBack />
                     </button>
-                    {/* <div className="row gap-3">
+                    <div className="row gap-3">
                         <Header />
-                    </div> */}
+                    </div>
                 </div>
                 <div className="alert alert-danger mt-4" role="alert">
                     <h4 className="alert-heading">❌ Ошибка загрузки</h4>
@@ -256,16 +250,16 @@ const BufferOrdersPage = () => {
                 >
                     <IoArrowBack />
                 </button>
-                {/* <div className="row gap-3">
+                <div className="row gap-3">
                     <Header />
-                </div> */}
+                </div>
             </div>
 
             <div className="mt-4">
                 <div className="d-flex justify-content-between align-items-center mb-4">
                     <h2 className="mb-0">
                         <IoTrophy className="me-2 text-warning" />
-                        Буфер заказов команды {userTeam}
+                        Буфер заказов - {getTeamDisplayName(userTeam)}
                     </h2>
                     <button
                         className="btn btn-outline-primary btn-sm"
@@ -275,37 +269,6 @@ const BufferOrdersPage = () => {
                         <IoRefresh className="me-1" />
                         Обновить
                     </button>
-                </div>
-
-                {/* Демо контролы */}
-                <div className="alert alert-warning mb-4" role="alert">
-                    <IoWarning className="me-2" />
-                    <strong>Демо контролы</strong> (в реальном приложении данные приходят из контекста):
-                    <div className="row mt-3">
-                        <div className="col-md-6">
-                            <label className="form-label">Команда:</label>
-                            <select
-                                value={userTeam}
-                                onChange={(e) => setUserTeam(e.target.value)}
-                                className="form-select form-select-sm"
-                            >
-                                <option value="A">Команда A</option>
-                                <option value="B">Команда B</option>
-                                <option value="C">Команда C</option>
-                                <option value="W">Команда W</option>
-                            </select>
-                        </div>
-                        <div className="col-md-6">
-                            <label className="form-label">Username:</label>
-                            <input
-                                type="text"
-                                value={userAt}
-                                onChange={(e) => setUserAt(e.target.value)}
-                                className="form-control form-control-sm"
-                                placeholder="telegram username"
-                            />
-                        </div>
-                    </div>
                 </div>
 
                 {/* Статистика */}
@@ -455,10 +418,10 @@ const BufferOrdersPage = () => {
                                             <button
                                                 className="btn btn-success btn-sm"
                                                 onClick={() => openTakeModal(order)}
-                                                disabled={takingOrder === order.order_id}
+                                                disabled={hookTakingOrder === order.order_id}
                                                 title="Взять заказ"
                                             >
-                                                {takingOrder === order.order_id ? (
+                                                {hookTakingOrder === order.order_id ? (
                                                     <div className="spinner-border spinner-border-sm" role="status">
                                                         <span className="visually-hidden">Loading...</span>
                                                     </div>
@@ -482,7 +445,7 @@ const BufferOrdersPage = () => {
                         </div>
                         <h4 className="text-muted">Буфер пуст</h4>
                         <p className="text-muted">
-                            В данный момент нет заказов для команды {userTeam}
+                            В данный момент нет заказов для {getTeamDisplayName(userTeam)}
                         </p>
                         <p className="text-muted small">
                             Заказы появятся здесь, когда их передадут другие пользователи
@@ -517,7 +480,7 @@ const BufferOrdersPage = () => {
                                     <h6 className="text-muted">Заказ #{selectedOrderForTake.order_id}</h6>
                                     <h5>{selectedOrderForTake.name || selectedOrderForTake.leadName || 'Имя не указано'}</h5>
                                     <span className="badge bg-warning text-dark">
-                                        Из буфера команды {mapTeamToQuery(userTeam)}
+                                        Из буфера {getTeamDisplayName(userTeam)}
                                     </span>
                                 </div>
 
@@ -593,9 +556,9 @@ const BufferOrdersPage = () => {
                                         handleTakeOrder(selectedOrderForTake);
                                         closeTakeModal();
                                     }}
-                                    disabled={takingOrder === selectedOrderForTake.order_id}
+                                    disabled={hookTakingOrder === selectedOrderForTake.order_id}
                                 >
-                                    {takingOrder === selectedOrderForTake.order_id ? (
+                                    {hookTakingOrder === selectedOrderForTake.order_id ? (
                                         <>
                                             <div className="spinner-border spinner-border-sm me-2" role="status">
                                                 <span className="visually-hidden">Loading...</span>
