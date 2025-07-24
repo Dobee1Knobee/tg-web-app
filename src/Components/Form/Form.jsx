@@ -493,7 +493,7 @@ const Form = () => {
         }));
 
         const payloadUpdate = {
-            owner: mongoUser?.name || `@${telegramUsername}`,
+            owner: telegramUsername,
             status,
             leadName,
             address: addressLead,
@@ -506,6 +506,10 @@ const Form = () => {
             services: filteredServices,
             leadId: currentLeadId,
         };
+
+        console.log('🔍 addressLead value:', addressLead);
+        console.log('🔍 payload.address:', payloadUpdate.address);
+        console.log('📤 Отправляемые данные:', JSON.stringify(payloadUpdate, null, 2));
 
         // Получаем текущую заявку
         const existingOrder = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${currentLeadId}`)

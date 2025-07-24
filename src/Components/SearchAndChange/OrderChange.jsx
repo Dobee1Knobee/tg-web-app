@@ -49,12 +49,15 @@ const OrderChange = () => {
 
     useEffect(() => {
         if (id) {
-            fetch(`https://backend/api/order/${id}`)
+            // ✅ Правильный endpoint
+            fetch(`https://backend/api/orderByLeadId/${id}`)
                 .then(res => res.json())
                 .then(data => {
-                    setStatus(data.status || '');
+                    console.log('📋 Загруженные данные заказа:', data);
+
+                    setStatus(data.text_status || '');        // ✅ правильное поле из схемы
                     setLeadName(data.leadName || '');
-                    setAddressLead(data.address || '');
+                    setAddressLead(data.adress || '');        // ✅ правильное поле из схемы
                     setPhoneNumberLead(data.phone || '');
                     setDisplayValue(formatPhoneNumber(data.phone || ''));
                     setDataLead(data.date ? data.date.slice(0, 16) : new Date().toISOString().slice(0, 16));
@@ -67,7 +70,7 @@ const OrderChange = () => {
                     setLoading(false);
                 })
                 .catch(err => {
-                    console.error('Ошибка загрузки заказа:', err);
+                    console.error('❌ Ошибка загрузки заказа:', err);
                     setLoading(false);
                 });
         }
@@ -99,10 +102,11 @@ const OrderChange = () => {
     const handleSubmit = async () => {
         const now = new Date();
         const formattedDate = new Date(dataLead).toISOString();
+
         const payload = {
-            status,
+            text_status: status,       // ✅ правильное поле для статуса
             leadName,
-            address: addressLead,
+            address: addressLead,      // ✅ отправляем address, сервер преобразует в adress
             phone: phoneNumberLead,
             date: formattedDate,
             city,
@@ -112,35 +116,14 @@ const OrderChange = () => {
             total: customTotal !== null ? Number(customTotal) : services
                 .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
                 .reduce((a, b) => a + b, 0),
-            owner: `${user.at}`,
+            owner: `@${telegramUsername}`, // ✅ для changedBy в истории изменений
             leadId: team + managerId,
         };
 
-        if (id) {
-            payload.changes = [
-                ...(changes || []),
-                {
-                    date: now.toISOString(),
-                    user: `@${user.at}`,
-                    fullSnapshot: {
-                        status,
-                        leadName,
-                        address: addressLead,
-                        phone: phoneNumberLead,
-                        date: formattedDate,
-                        city,
-                        master: selectedMaster,
-                        comment: commentOrder,
-                        services,
-                        owner: `@${user.at}`,
-                        total: customTotal
-                    }
-                }
-            ];
-        }
-        console.log(payload);
+        console.log('📤 Отправляемые данные:', JSON.stringify(payload, null, 2));
+
         const method = id ? 'PUT' : 'POST';
-        const url = id ? `https://backend/api/order/${id}` : `https://backend/api/order`;
+        const url = id ? `https://backend/api/orders/${id}` : `https://backend/api/addOrder`;
 
         try {
             const res = await fetch(url, {
@@ -149,13 +132,20 @@ const OrderChange = () => {
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error('Ошибка при отправке');
+            if (!res.ok) {
+                const errorText = await res.text();
+                console.error('❌ Ошибка от сервера:', errorText);
+                throw new Error(`Ошибка ${res.status}: ${errorText}`);
+            }
+
+            const result = await res.json();
+            console.log('✅ Ответ сервера:', result);
 
             alert(id ? '✅ Заказ обновлён!' : '✅ Заявка создана!');
             navigate('/');
         } catch (err) {
-            console.error(err);
-            alert('❌ Ошибка при сохранении заказа');
+            console.error('❌ Полная ошибка:', err);
+            alert('❌ Ошибка при сохранении заказа: ' + err.message);
         }
     };
 

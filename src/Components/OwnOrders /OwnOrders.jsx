@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMyOrders } from "../../hooks/useMyOrders";
 import { useTelegram } from "../../hooks/useTelegram";
 import { useTransferOrder } from "../../hooks/useTransferOrder";
+import { useTakeBackTransferred } from "../../hooks/useTakeBackTransferred"; // Новый импорт
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from '../Header/Header';
 import {
@@ -22,15 +23,17 @@ import {
     IoShieldCheckmark,
     IoCopy,
     IoIdCard,
-    IoArrowForward
+    IoArrowForward,
+    IoArrowUndo // Новая иконка для "забрать обратно"
 } from 'react-icons/io5';
 
 const OwnOrders = () => {
     const { isLoading, orders, error, myOrders, refetchOrders } = useMyOrders();
     const { transferOrder, error: transferError, giveOrder } = useTransferOrder();
+    const { takeBackOrder, takingBackOrder, error: takeBackError } = useTakeBackTransferred(); // Новый хук
     const { user } = useTelegram();
     const navigate = useNavigate();
-    const telegramUsername = user?.username || "Balyetca";
+    const telegramUsername = user?.username || "devapi1";
 
     const [note, setNote] = useState('');
     const [filter, setFilter] = useState('all');
@@ -52,12 +55,16 @@ const OwnOrders = () => {
 
     const getBufferStatus = (order) => {
         if (order.transfer_status === 'in_buffer') {
+            // Проверяем, является ли текущий пользователь тем, кто передавал заказ
+            const canTakeBack = order.transferred_from?.user_at === telegramUsername;
             return {
                 isInBuffer: true,
-                teamName: getTeamDisplayName(order.transferred_to_team)
+                teamName: getTeamDisplayName(order.transferred_to_team),
+                canTakeBack: canTakeBack,
+                transferredBy: order.transferred_from?.user_name || 'Неизвестно'
             };
         }
-        return { isInBuffer: false };
+        return { isInBuffer: false, canTakeBack: false };
     };
 
     const getTeamDisplayName = (teamQuery) => {
@@ -77,6 +84,29 @@ const OwnOrders = () => {
 
     const handleRefresh = () => {
         myOrders(telegramUsername);
+    };
+
+    // Новая функция для забирания заказа обратно
+    const handleTakeBack = async (order) => {
+        try {
+            console.log(`🔙 Забираем обратно заказ ${order.order_id}`);
+
+            const result = await takeBackOrder(order.order_id, telegramUsername);
+
+            if (result.success) {
+                console.log('✅ Заказ успешно забран обратно:', result.message);
+
+                // Обновляем список заказов
+                myOrders(telegramUsername);
+
+                // Можно показать уведомление об успехе
+                // toast.success(result.message) // если используете toast
+            } else {
+                console.error('❌ Ошибка при забирании заказа обратно:', result.error);
+            }
+        } catch (error) {
+            console.error('❌ Произошла ошибка при забирании заказа обратно:', error);
+        }
     };
 
     useEffect(() => {
@@ -353,6 +383,9 @@ const OwnOrders = () => {
                     </button>
                 </div>
 
+                {/* Показ ошибки для takeBack */}
+
+
                 {/* Статистика */}
                 {orders && (
                     <div className="row mb-4">
@@ -436,7 +469,7 @@ const OwnOrders = () => {
                                         <div>
                                             <strong>ID:{order.leadId || order.order_id || 'N/A'}</strong>
                                         </div>
-                                        <div className="d-flex gap-2">
+                                        <div className="d-flex gap-2 flex-wrap">
                                             {/* Основной статус */}
                                             <span
                                                 className="badge rounded-pill px-3"
@@ -455,6 +488,9 @@ const OwnOrders = () => {
                                                 return bufferStatus.isInBuffer && (
                                                     <span className="badge bg-warning text-dark px-2" style={{ fontSize: '0.75em' }}>
                                                         📤 В буфере {bufferStatus.teamName}
+                                                        {bufferStatus.canTakeBack && (
+                                                            <span className="ms-1">• Можно забрать</span>
+                                                        )}
                                                     </span>
                                                 );
                                             })()}
@@ -579,6 +615,24 @@ const OwnOrders = () => {
                                                     <IoArrowForward />
                                                 </button>
                                             )}
+                                            {/* НОВАЯ КНОПКА "Забрать обратно" */}
+                                            {(() => {
+                                                const bufferStatus = getBufferStatus(order);
+                                                return bufferStatus.isInBuffer && bufferStatus.canTakeBack && (
+                                                    <button
+                                                        className="btn btn-outline-success btn-sm"
+                                                        onClick={() => handleTakeBack(order)}
+                                                        title="Забрать заказ обратно"
+                                                        disabled={takingBackOrder === order.order_id}
+                                                    >
+                                                        {takingBackOrder === order.order_id ? (
+                                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                        ) : (
+                                                            <IoArrowUndo />
+                                                        )}
+                                                    </button>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
