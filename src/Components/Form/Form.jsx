@@ -12,6 +12,7 @@ import { useParams } from "react-router-dom";
 import {useCheckOrder} from "../../hooks/useCheckOrder";
 import {useGetClient} from "../../hooks/useGetNumbersOfClient";
 import {ToastContext} from "../../context/ToastContext";
+import {useGetCities} from "../../hooks/useGetCitiesByTeam";
 
 const workTypes = [
     { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
@@ -154,7 +155,9 @@ const Form = () => {
     const { user } = useTelegram();
     const telegramUsername = user?.username || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
+
     const [team, setTeam] = useState("");
+    const { cities, loading: citiesLoading, error: citiesError } = useGetCities(mongoUser?.team);
     const [managerId, setManagerId] = useState("");
     const masters = useMastersByTeam(team); // ⬅️ на верхнем уровне компонента
     const navigate = useNavigate();
@@ -892,7 +895,7 @@ const Form = () => {
     const removeService = (index) => {
         setServices(services.filter((_, i) => i !== index));
     };
-
+    console.log(cities)
     return (
         <div className="container py-4">
 

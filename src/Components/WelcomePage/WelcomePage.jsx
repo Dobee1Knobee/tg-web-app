@@ -164,7 +164,7 @@ const WelcomePage = () => {
             width: '100%',
             height: '100%',
 
-            marginTop:"-3vh",
+            marginTop:"-1.6rem",
             display: 'flex',
             alignItems: 'center',
             justifyContent: isOnShift ? 'flex-start' : 'flex-end',
