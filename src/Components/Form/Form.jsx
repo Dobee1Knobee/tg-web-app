@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useContext, useEffect, useState} from 'react';
 import { useTelegram } from '../../hooks/useTelegram';
 import { useUserByAt } from '../../hooks/findUserByAt';
 import { useMastersByTeam } from '../../hooks/findMastersByTeam';
@@ -11,10 +11,13 @@ import {useLocation, useNavigate} from "react-router-dom";
 import { useParams } from "react-router-dom";
 import {useCheckOrder} from "../../hooks/useCheckOrder";
 import {useGetClient} from "../../hooks/useGetNumbersOfClient";
+import {ToastContext} from "../../context/ToastContext";
+
 const workTypes = [
     { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
     { label: "Large Mounting", value: "tv_big", price: 0 }, // зависит от часов
-    { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 }, // зависит от часов
+    { label:  "Large Mounting 2 Handy", value: "tv_big2", price: 0 },
+    {label: "Пустая"}// зависит от часов
 ];
 const additionalServices = [
     { label: "Dismount an existing TV", value: "unmount_tv", price: 49 },
@@ -29,6 +32,7 @@ const additionalServices = [
     { label: "Install an electrical outlet", value: "outlet", price: 59 },
     { label: "Soundbar with installation", value: "soundbar_full", price: 199 },
     { label: "TV backlight installation", value: "backlight", price: 149 },
+
 ];
 const mount = [
     {label:"Fixed TV mount",value:"fixed_mount",price:39},
@@ -79,13 +83,16 @@ const Form = () => {
     const [orderIdInput, setOrderIdInput] = useState(""); // New state for Order ID input
     const [isWeOwnerMount, setIsWeOwnerMount] = useState(false);
     const [mountData,setMountData] = useState({});
-    const { submitOrder, isLoading, error, response } = useSubmitOrder();
+    const { submitOrder, linkFormToOrder, isLoading, error, response } = useSubmitOrder();
     const [additionalTelephones, setAdditionalTelephones] = useState([]);
     const [newPhoneNumber, setNewPhoneNumber] = useState('');
     const [newPhoneLabel, setNewPhoneLabel] = useState('');
     const [isAddingPhone, setIsAddingPhone] = useState(false);
     const { response: clientData, error: clientError, loading: clientLoading, getClient } = useGetClient();
-
+    const [zipCode,setZipCode] = useState('');
+    const [loadingOrderTODB,setLoadingOrderTODB] = useState(false);
+    const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useContext(ToastContext);
+    const [showDupAfterChange, setShowDupAfterChange] = useState(true);
     const formatPhoneNumber = (value) => {
         // Удаляем всё, кроме цифр
         const digits = value.replace(/\D/g, '');
@@ -107,7 +114,7 @@ const Form = () => {
     const handleChange = (e) => {
         const input = e.target.value;
         const digits = input.replace(/\D/g, '');
-
+        setShowDupAfterChange(true);
         // Очищенный номер без +1
         const cleaned = digits.startsWith('1') ? digits.slice(1) : digits;
 
@@ -192,6 +199,7 @@ const Form = () => {
 
                 if (response.ok && data.form) {
                     setPhoneNumberLead(data.form.telephone);
+
                     setDisplayValue(formatPhoneNumber(data.form.telephone));
                     setClientId(data.form.client_id);
 
@@ -228,6 +236,7 @@ const Form = () => {
         setIsLoadingOrder(true);
         console.log("📞 Данные клиента получены:", clientData);
 
+        checkOrder(clientData.mainPhones);
         if (Array.isArray(clientData.additionalTelephones) && clientData.additionalTelephones.length > 0) {
             console.log(`📞 Загружено ${clientData.additionalTelephones.length} дополнительных номеров из базы`);
 
@@ -260,13 +269,15 @@ const Form = () => {
 
         const fetchOrderAndClient = async () => {
             try {
-                const response = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`);
+                const response = await fetch(
+                    `https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${leadId}`
+                );
                 const data = await response.json();
 
                 setUpdateOrder(true);
                 setStatus(data.text_status || "");
-                setLeadName(data.leadName || "");
                 setAddressLead(data.address || "");
+                setZipCode(data.zip_code || "");
                 setPhoneNumberLead(data.phone || "");
                 setDisplayValue(formatPhoneNumber(data.phone || ""));
                 setCity(data.city || "");
@@ -274,31 +285,29 @@ const Form = () => {
                 setSelectedMaster(data.master || "");
                 setServices(data.services || []);
 
-                // Устанавливаем дополнительные телефоны из заказа
                 if (data.additionalTelephone && Array.isArray(data.additionalTelephone)) {
                     setAdditionalTelephones(data.additionalTelephone);
                 }
 
-                // ✅ НОВОЕ: Если есть client_id в заказе, загружаем актуальные номера клиента
                 if (data.client_id && data.client_id !== clientId) {
                     console.log(`📞 Устанавливаем client_id ${data.client_id}`);
                     setClientId(data.client_id);
                 }
 
-
-
                 const isoDate = new Date(data.date);
                 const date = isoDate.toISOString().split("T")[0];
                 const time = isoDate.toTimeString().slice(0, 5);
                 setDataLead(`${date}T${time}`);
+
+                // 🔥 Сюда ставим leadName, чтобы оно вставилось ОДИН раз при загрузке
+                setLeadName(data.leadName || "");
             } catch (err) {
                 console.error("❌ Ошибка при загрузке заказа по leadId:", err);
             }
         };
 
         fetchOrderAndClient();
-    }, [leadId, getClient]);
-    // Добавил telegramUsername в зависимости
+    }, [leadId, callType]);
 
 
     const [showTechChoice, setShowTechChoice] = useState(false);
@@ -337,8 +346,8 @@ const Form = () => {
     const [currentService, setCurrentService] = useState({
         label:"",
         diagonal: "",
-        count: "1",
-        workType: workTypes[0].value,
+        count: "",
+        workType: [],
         message: "",
         price: "",
         mountType: "",
@@ -367,13 +376,22 @@ const Form = () => {
     const handleServiceChange = (e) => {
         setCurrentService({ ...currentService, [e.target.name]: e.target.value });
     };
+    const handleChangeTypeCall = (e) => {
+        setCallType(null)
+        setPhoneNumberLead(null)
+        setFound(false)
+        setOrderIdInput(null)
+        setDisplayValue(null)
+        setShowDupAfterChange(false)
+
+    }
 
     const startAdding = () => {
         setCurrentService({
             label:"",
             diagonal: "",
-            count: "1",
-            workType: workTypes[0].value,
+            count: "",
+            workType: [],
             message: "",
             price: "",
             mountType: "",
@@ -400,8 +418,8 @@ const Form = () => {
         setCurrentService({
             label: "",
             diagonal: "",
-            count: "1",
-            workType: workTypes[0].value,
+            count: "",
+            workType: [],
             message: "",
             price: "",
             mountType: "",
@@ -516,76 +534,105 @@ const Form = () => {
 
 // Исправленная функция submitToGoogleSheets
     const submitToGoogleSheets = async () => {
-        const url = getSheetUrlByTeam(team);
-        const manager_id = managerId ? `${managerId}` : "N/A";
-        const team_id = team ? team : "N/A";
+        try { // 🆕 ДОБАВИТЬ TRY
+            setLoadingOrderTODB(true)
+            const url = getSheetUrlByTeam(team);
+            const manager_id = managerId ? `${managerId}` : "N/A";
+            const team_id = team ? team : "N/A";
 
-        const total = customTotal !== null
-            ? Number(customTotal)
-            : services
-                .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
-                .reduce((a, b) => a + b, 0);
-
-        const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
-        const formattedDate = new Date(safeDate).toISOString(); // GMT+0 для MongoDB
-        const formattedDateSheets = new Date(safeDate).toISOString().slice(0, 19).replace('T', ' ');
-
-        // ✅ НЕ отправляем leadId - пусть сервер сгенерирует
-        const payloadForMongo = {
-            owner: `${telegramUsername}`,
-            team: team_id,
-            client_id: clientId,
-            manager_id,
-            text_status: status,
-            leadName,
-            address: addressLead,
-            phone: phoneNumberLead,
-            date: formattedDate,
-            city,
-            master: selectedMaster,
-            comment: commentOrder,
-            additionalTelephone: additionalTelephones,
-            total,
-            services: servicesWithMountCount, // вот сюда вставляем обновлённые услуги
-        };
+            const total = customTotal !== null
+                ? Number(customTotal)
+                : services
+                    .map(s => (
+                        (s.price + s.mountPrice) * s.count +
+                        (s.materialPrice || 0) +
+                        (s.addonsPrice || 0) +
+                        (s.mountPrice * s.mountCount)
+                    ))
+                    .reduce((a, b) => a + b, 0);
 
 
-        console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
+            const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
+            // ✅ Если дата введена – сохраняем ровно то, что введено
+            const formattedDate = dataLead ? dataLead : new Date().toISOString();
 
-        const result = await submitOrder(payloadForMongo);
+// ✅ Для Google Sheets – тоже сохраняем без пересчёта
+            const formattedDateSheets = dataLead
+                ? dataLead.replace('T', ' ')   // превращаем 2025-07-27T15:30 → 2025-07-27 15:30
+                : new Date().toISOString().slice(0, 19).replace('T', ' ');
+            // ✅ НЕ отправляем leadId - пусть сервер сгенерирует
+            const payloadForMongo = {
+                owner: `${telegramUsername}`,
+                team: team_id,
+                zip_code : zipCode,
+                client_id: clientId,
+                manager_id,
+                text_status: status,
+                leadName,
+                address: addressLead,
+                phone: phoneNumberLead,
+                date: formattedDate,
+                city,
+                master: selectedMaster,
+                comment: commentOrder,
+                additionalTelephone: additionalTelephones,
+                total,
+                services: servicesWithMountCount, // вот сюда вставляем обновлённые услуги
+            };
 
-        if (!result) {
-            alert(`❌ Ошибка при сохранении в базу: ${error}`);
-            return;
-        }
+            console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
 
-        // ✅ Используем leadId из ответа сервера
-        const finalLeadId = result.leadId;
-        console.log("🎯 leadId из сервера:", finalLeadId);
+            const result = await submitOrder(payloadForMongo);
 
-        const payloadForSheets = {
-            owner: mongoUser?.name || `${telegramUsername}`,
-            team: team_id,
-            manager_id,
-            text_status: status,
-            leadName,
-            address: addressLead,
-            phone: phoneNumberLead,
-            date: formattedDateSheets,
-            city,
-            additionalTelephone: additionalTelephones, // ← Добавить эту строку
-            client_id: clientId,
+            if (!result) {
+                showError(`❌ Ошибка при сохранении в базу: ${error || 'Неизвестная ошибка,попробуйте еще раз'}`);
+                setLoadingOrderTODB(false)
+                return;
+            }
 
-            master: selectedMaster,
-            comment: commentOrder,
-            total,
-            services,
-            leadId: finalLeadId, // ✅ leadId из сервера
-        };
+            // ✅ Используем leadId из ответа сервера
+            const finalLeadId = result.leadId;
 
-        console.log("📦 Payload для Google Sheets:", JSON.stringify(payloadForSheets, null, 2));
+            // 🆕 ПРИВЯЗЫВАЕМ ФОРМУ ЕСЛИ ЕСТЬ formId
+            if (orderIdInput && orderIdInput.trim()) { // ✅ ИСПРАВЛЕНО
+                console.log(`🔗 Привязываем форму ${orderIdInput} к заказу ${result.id}`);
 
-        try {
+                const linkResult = await linkFormToOrder(
+                    telegramUsername,    // at
+                    orderIdInput,        // ✅ ИСПРАВЛЕНО: form_id
+                    result.id           // order_id (MongoDB _id заказа)
+                );
+
+                if (linkResult.success) {
+                    console.log('✅ Форма успешно привязана к заказу');
+                } else {
+                    console.warn('⚠️ Не удалось привязать форму:', linkResult.error);
+                    // Не падаем, просто логируем
+                }
+            }
+
+            const payloadForSheets = {
+                zip_code: zipCode,
+                owner: mongoUser?.name || `${telegramUsername}`,
+                team: team_id,
+                manager_id,
+                text_status: status,
+                leadName,
+                address: addressLead,
+                phone: phoneNumberLead,
+                date: formattedDateSheets,
+                city,
+                additionalTelephone: additionalTelephones, // 🆕 ДОБАВИЛИ
+                client_id: clientId,
+                master: selectedMaster,
+                comment: commentOrder,
+                total,
+                services,
+                leadId: finalLeadId, // ✅ leadId из сервера
+            };
+
+            console.log("📦 Payload для Google Sheets:", JSON.stringify(payloadForSheets, null, 2));
+
             await fetch(url, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -595,20 +642,33 @@ const Form = () => {
                 body: JSON.stringify(payloadForSheets),
             });
 
-            alert(`✅ Заявка успешно сохранена. Lead ID: ${finalLeadId}`);
-        } catch (err) {
-            console.error("❌ Ошибка при отправке в Google Sheets:", err);
-            alert(`⚠️ Заказ сохранен в базу (ID: ${finalLeadId}), но возникла ошибка при отправке в Google Sheets`);
+            // 🆕 Улучшенное сообщение с информацией о привязке формы
+            const successMessage = orderIdInput && orderIdInput.trim()
+                ? `✅ The application has been saved and linked to the form. Lead ID: ${finalLeadId}`
+                : `✅ The application has been successfully saved. Lead ID: ${finalLeadId}`;
+
+            showSuccess(successMessage);
+            setLoadingOrderTODB(false)
+
+        } catch (err) { // 🆕 ДОБАВИТЬ CATCH
+            console.error("❌ Общая ошибка в submitToGoogleSheets:", err);
+            showError(`❌ Произошла ошибка: ${err.message || 'Неизвестная ошибка'}`);
         }
     };
-    const [mountCount,setMountCount] = useState(0);
+
+    const [mountCount, setMountCount] = useState(0);
     const servicesWithMountCount = services.map(s => ({
         ...s,
         mountCount: s.mountCount || 0,          // если нет — ставим 0
         mountType: s.mountType || '',           // на всякий случай
         mountPrice: s.mountPrice || 0
     }));
+    const handleDoubleCheckingByID =(e) => {
+        setOrderIdInput(e)
+        console.log("🎰")
+        setShowDupAfterChange(true)
 
+    }
 
     const updateOrderInMongoAndSheets = async () => {
         const currentLeadId = leadId; // Используем существующий leadId
@@ -616,8 +676,15 @@ const Form = () => {
         const total = customTotal !== null
             ? Number(customTotal)
             : services
-                .map(s => ((s.price + s.mountPrice) * s.count + (s.materialPrice || 0) + (s.addonsPrice || 0)))
+                .map(s => (
+                    (s.price + s.mountPrice) * s.count +
+                    (s.materialPrice || 0) +
+                    (s.addonsPrice || 0) +
+                    (s.mountPrice * s.mountCount)
+                ))
                 .reduce((a, b) => a + b, 0);
+
+
 
         const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
         const formattedDate = new Date(safeDate).toISOString(); // GMT+0 для MongoDB
@@ -628,7 +695,7 @@ const Form = () => {
         const filteredServices = services.map(s => ({
             label:s.label || "",
             diagonal: s.diagonal || "",
-            count: String(s.count || "1"),
+            count: String(s.count || ""),
             workType: s.workType || "",
             message: s.message || "",
             price: Number(s.price || 0),
@@ -657,9 +724,10 @@ const Form = () => {
         }));
 
         const payloadUpdate = {
+            zip_code: zipCode,
             owner: telegramUsername,
-            status,
-            formId : setOrderIdInput,
+            text_status:status,
+            formId: orderIdInput,  // ✅ ИСПРАВЛЕНО: было setOrderIdInput
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
@@ -672,7 +740,6 @@ const Form = () => {
             leadId: currentLeadId,
             mountCount : mountCount,
             client_id: clientId,
-
             additionalTelephone: additionalTelephones,
         };
 
@@ -680,42 +747,42 @@ const Form = () => {
         console.log('🔍 payload.address:', payloadUpdate.address);
         console.log('📤 Отправляемые данные:', JSON.stringify(payloadUpdate, null, 2));
 
-        // Получаем текущую заявку
-        const existingOrder = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${currentLeadId}`)
-            .then(async res => {
-                if (!res.ok) {
-                    const text = await res.text();
-                    console.error("❌ Ответ сервера:", text);
-                    throw new Error(`❌ Заказ с ID ${currentLeadId} не найден (${res.status})`);
-                }
-                return res.json();
-            })
-            .catch(err => {
-                console.error("🔥 Ошибка загрузки заказа:", err.message);
-                alert(err.message);
-                return null;
-            });
-
-        if (!existingOrder) return;
-
-        const changeEntry = {
-            changedAt: new Date().toISOString(), // GMT+0
-            changedBy: `@${telegramUsername}`,
-            changes: payloadUpdate,
-        };
-
-        // Исключаем поля, которые нельзя отправлять
-        const { _id, __v, createdAt, updatedAt, original, changes, ...sanitizedExisting } = existingOrder;
-
-        const updatedOrder = {
-            ...sanitizedExisting,
-            ...payloadUpdate,
-            changes: [...(existingOrder.changes || []), changeEntry],
-        };
-
-        console.log(updatedOrder);
-
         try {
+            // Получаем текущую заявку
+            const existingOrder = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orderByLeadId/${currentLeadId}`)
+                .then(async res => {
+                    if (!res.ok) {
+                        const text = await res.text();
+                        console.error("❌ Ответ сервера:", text);
+                        throw new Error(`❌ Заказ с ID ${currentLeadId} не найден (${res.status})`);
+                    }
+                    return res.json();
+                })
+                .catch(err => {
+                    console.error("🔥 Ошибка загрузки заказа:", err.message);
+                    showError(err.message);
+                    return null;
+                });
+
+            if (!existingOrder) return;
+
+            const changeEntry = {
+                changedAt: new Date().toISOString(), // GMT+0
+                changedBy: `@${telegramUsername}`,
+                changes: payloadUpdate,
+            };
+
+            // Исключаем поля, которые нельзя отправлять
+            const { _id, __v, createdAt, updatedAt, original, changes, ...sanitizedExisting } = existingOrder;
+
+            const updatedOrder = {
+                ...sanitizedExisting,
+                ...payloadUpdate,
+                changes: [...(existingOrder.changes || []), changeEntry],
+            };
+
+            console.log(updatedOrder);
+
             // Обновляем в MongoDB
             const res = await fetch(`https://bot-crm-backend-756832582185.us-central1.run.app/api/orders/${currentLeadId}`, {
                 method: "PUT",
@@ -726,8 +793,28 @@ const Form = () => {
             if (!res.ok) {
                 const errorText = await res.text();
                 console.error("❌ Ошибка от сервера:", errorText);
-                alert("❌ Ошибка при обновлении заявки. См. консоль.");
+                showError("❌ Ошибка при обновлении заявки. См. консоль.");
                 return;
+            }
+
+            const updateResult = await res.json(); // 🆕 Получаем результат
+
+            // 🆕 ПРИВЯЗЫВАЕМ ФОРМУ ЕСЛИ ЕСТЬ formId ПРИ ОБНОВЛЕНИИ
+            if (orderIdInput && orderIdInput.trim()) {
+                console.log(`🔗 Привязываем форму ${orderIdInput} к обновленному заказу ${updateResult.order._id}`);
+
+                const linkResult = await linkFormToOrder(
+                    telegramUsername,      // at
+                    orderIdInput,          // form_id
+                    updateResult.order._id // order_id (MongoDB _id заказа)
+                );
+
+                if (linkResult.success) {
+                    console.log('✅ Форма успешно привязана к обновленному заказу');
+                } else {
+                    console.warn('⚠️ Не удалось привязать форму при обновлении:', linkResult.error);
+                    // Не падаем, просто логируем
+                }
             }
 
             // Если MongoDB обновился успешно, отправляем в Google Sheets
@@ -739,7 +826,7 @@ const Form = () => {
                 text_status: status,
                 leadName,
                 address: addressLead,
-                additionalTelephone: additionalTelephones,
+                additionalTelephone: additionalTelephones, // 🆕 Добавил эту строку
                 phone: phoneNumberLead,
                 date: formattedDateSheets, // ← GMT+0
                 city,
@@ -763,14 +850,19 @@ const Form = () => {
                 console.error("❌ Ошибка при обновлении Google Sheets:", sheetsError);
             }
 
-            alert(`✅ Заявка успешно обновлена. Lead ID: ${currentLeadId}`);
+            // 🆕 Улучшенное сообщение
+            const successMessage = orderIdInput && orderIdInput.trim()
+                ? `✅ The order has been updated and linked to the form. Lead ID: ${currentLeadId}`
+                : `✅ The order has been successfully updated. Lead ID: ${currentLeadId}`;
+
+
+            alert(successMessage);
+
         } catch (err) {
             console.error("❌ Ошибка сети или CORS:", err);
-            alert("❌ Запрос не дошёл до сервера. Проверь подключение.");
+            showError("❌ Запрос не дошёл до сервера. Проверь подключение.");
         }
     };
-
-
     const allCities = [
         "Austin", "Dallas", "Denver", "Houston", "Las-Vegas", "Los_Angeles",
         "Phoenix", "Portland", "Salt_Lake", "SF", "Sacramento", "San_Diego",
@@ -796,12 +888,14 @@ const Form = () => {
         });
     };
 
+
     const removeService = (index) => {
         setServices(services.filter((_, i) => i !== index));
     };
 
     return (
         <div className="container py-4">
+
             <div className="position-relative">
                 <button
                     onClick={() => navigate(-1)}
@@ -824,12 +918,12 @@ const Form = () => {
                 </div>
             </div>
 
-            <h2 className="mb-3 text-center mt-4">Создание новой заявки</h2>
+            <h2 className="mb-3 text-center mt-4">Creation of a new order</h2>
 
 
 
             <div className="mb-3">
-                <input className="form-control" placeholder={`Владелец заявки: ${ownerName}`} readOnly />
+                <input className="form-control" placeholder={`Owner (manager) : ${ownerName}`} readOnly />
             </div>
 
             <div className="mb-3">
@@ -844,7 +938,7 @@ const Form = () => {
                     }}
                 >
                     <option value="" disabled hidden>
-                        Статус заявки
+                        Status
                     </option>
                     {Object.keys(statusColors).map((statusKey) => (
                         <option key={statusKey} value={statusKey}>
@@ -853,26 +947,42 @@ const Form = () => {
                     ))}
                 </select>
             </div>
+            <input
+                className="form-control"
+                type="text"
+                placeholder="Customer name"
+                value={leadName}
+                onChange={(e) => {
+                    console.log(e.target.value)
+                    setLeadName(e.target.value)
+                }}
+            />
 
-            <div className="mb-3">
+            <div className="mb-3 mt-3 d-flex flex-row">
                 <input
                     className="form-control"
                     type="text"
-                    placeholder="Имя заказчика"
-                    value={leadName}
-                    onChange={(e) => setLeadName(e.target.value)}
-                />
-            </div>
-            <div className="mb-3">
-                <input
-                    className="form-control"
-                    type="text"
-                    placeholder="Адрес"
+                    placeholder="Address"
                     value={addressLead}
                     onChange={(e) => setAddressLead(e.target.value)}
                 />
+                <input className={"form-control"} type={"text"} placeholder={"ZIP code"} value={zipCode} onChange={(e) => setZipCode(e.target.value)} />
             </div>
-            {/* Conditional rendering based on callType */}
+            {callType && (
+                <div
+                    style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        cursor: "pointer"
+                    }}
+                    onClick={() => handleChangeTypeCall()}
+                >
+                    <IoArrowBack />
+                    <span>Return</span>
+                </div>
+            )}
+
             <div className="mb-3 d-flex flex-row gap-2 mx-auto">
                 {!callType && !pathname.includes("/change/") && (
                     <>
@@ -881,23 +991,24 @@ const Form = () => {
                             onClick={() => setCallType('inbound')}
                         >
                             <i className="bi bi-telephone-inbound-fill me-2"></i>
-                            Входящий
+                            incoming
                         </button>
                         <button
                             className="btn btn-danger d-flex align-items-center justify-content-center w-100"
                             onClick={() => setCallType('outgoing')}
                         >
                             <i className="bi bi-telephone-outbound-fill me-2"></i>
-                            Исходящий
+                            outgoing
                         </button>
                     </>
                 )}
+
 
                 {callType === 'inbound'  && (
                     <input
                         className="form-control"
                         type="text"
-                        placeholder="Номер телефона"
+                        placeholder="Phone number"
                         value={displayValue}
                         onChange={handleChange}
                         inputMode="numeric"
@@ -910,15 +1021,19 @@ const Form = () => {
                     <input
                         className="form-control"
                         type="text"
-                        placeholder="Номер заказа"
+                        placeholder="ID number from message"
                         value={orderIdInput}
-                        onChange={(e) => setOrderIdInput(e.target.value)}
+                        onChange={(e) => {
+                            handleDoubleCheckingByID(e.target.value)
+                            // ✅ обновляем orderIdInput
+                        }}
                     />
                 )}
+
             </div>
-            {checkResponse?.orders?.length > 0  && !creatingNewOrChanging && (
+            {checkResponse?.orders?.length > 0  && !creatingNewOrChanging  && showDupAfterChange&&   !pathname.includes("/change/") &&(
                 <div className="mt-3 mb-3">
-                    <h5>🔁 Найдено {checkResponse.orders.length} дубля:</h5>
+                    <h5>🔁 Found {checkResponse.orders.length} duplicates:</h5>
                     <ul className="list-group mt-2">
                         {checkResponse.orders.map((order, idx) => (
                             <li
@@ -926,7 +1041,7 @@ const Form = () => {
                                 className="list-group-item d-flex justify-content-between align-items-center"
                             >
                                 <div>
-                                    Заказ <strong>{order.order_id}</strong> — {order.text_status || 'без статуса'}
+                                    Order <strong>{order.order_id}</strong> — {order.text_status || 'no status'}
                                 </div>
                                 <button
                                     className="btn btn-sm btn-outline-primary"
@@ -936,7 +1051,7 @@ const Form = () => {
                                     }}
                                 >
 
-                                    Открыть
+                                    Open
                                 </button>
                             </li>
                         ))}
@@ -955,7 +1070,7 @@ const Form = () => {
                 <div className="container d-flex flex-column">
                     {/* Основной номер */}
                     <div className="mb-3">
-                        <label className="form-label">Основной номер:</label>
+                        <label className="form-label">Main phone:</label>
                         <input
                             className="form-control"
                             type="text"
@@ -967,7 +1082,7 @@ const Form = () => {
                     {clientLoading && (
                         <div className="d-flex align-items-center mb-3">
                             <div className="spinner-border spinner-border-sm me-2" role="status"></div>
-                            <span>Загружаем дополнительные номера...</span>
+                            <span>Loading additional numbers...</span>
                         </div>
                     )}
 
@@ -979,7 +1094,7 @@ const Form = () => {
 
                     {additionalTelephones.length > 0 && (
                         <div className="card p-3 mb-3">
-                            <strong>Дополнительные номера:</strong>
+                            <strong>Additional numbers:</strong>
                             <ul className="list-group list-group-flush">
                                 {additionalTelephones.map((phone, index) => (
                                     <li key={index} className="list-group-item d-flex justify-content-between align-items-center px-0">
@@ -1004,7 +1119,7 @@ const Form = () => {
                             className="btn btn-success mx-auto w-50 mt-3"
                             onClick={() => setAddingTelephone(true)}
                         >
-                            <i>➕ Добавить дополнительный номер</i>
+                            <i>➕ Add additional number</i>
                         </button>
                     ) : (
                         <div className="card p-3 mb-3 mt-3">
@@ -1048,7 +1163,7 @@ const Form = () => {
                                     className="btn btn-primary btn-sm"
                                     onClick={handleAddPhoneNumber}
                                 >
-                                    Сохранить
+                                    Save
                                 </button>
                                 <button
                                     className="btn btn-secondary btn-sm"
@@ -1058,7 +1173,7 @@ const Form = () => {
                                         setNewPhoneLabel('');
                                     }}
                                 >
-                                    Отмена
+                                    Cancel
                                 </button>
                             </div>
                         </div>
@@ -1101,7 +1216,7 @@ const Form = () => {
                 <input
                     className="form-control"
                     type="text"
-                    placeholder="Город"
+                    placeholder="City"
                     value={city}
                     onFocus={() => setShowList(true)}
                     onBlur={() => setTimeout(() => setShowList(false), 200)}
@@ -1143,7 +1258,7 @@ const Form = () => {
                         }
                     }}
                 >
-                    <option value="">Выберите мастера</option>
+                    <option value="">Choose master</option>
                     {masters
                         ?.filter((m) => city === "" || m.city.toLowerCase() === city.toLowerCase())
                         .map((m, i) => (
@@ -1159,14 +1274,14 @@ const Form = () => {
                 <input
                     className="form-control"
                     type={"text"}
-                    placeholder="Коментарий к заказу"
+                    placeholder="Note for order"
                     value={commentOrder}
                     onChange={(e) => setCommentOrder(e.target.value)}
                 />
             </div>
             {services.length > 0 && (
                 <div className="mt-4">
-                    <h4>Добавленные услуги:</h4>
+                    <h4>Added services:</h4>
                     <ul className="list-group">
                         {servicesWithMountCount.map((s, i) => (
                             <li
@@ -1174,22 +1289,35 @@ const Form = () => {
                                 className="list-group-item d-flex justify-content-between align-items-center"
                             >
                                 <span>
-                                    📺  Диагональ: <b>{s.diagonal}"</b> <br/>
-                                    🔢  Количество: <b>{s.count}</b> <br/>
-                                    🔧  Услуга: <b>{workTypes.find(t => t.value === s.workType)?.label} (${s.price} * {s.count}) </b><br/>
-                                    { s.mountType && (
-                                        <div>
-                                            <div>🔩 Крепление: <b>{mount.find(m => m.value === s.mountType)?.label}</b>  </div>
-                                            <div style={{marginLeft:"2.2vh"}}> Количество: <b>{ s.mountCount} </b>  </div>
-                                            <div style={{marginLeft:"2.2vh"}}>Итого:💲{s.mountPrice * s.mountCount}</div>
+                                    {s.diagonal && (
+                                        <>
+                                            📺  Diagonal: <b>{s.diagonal}"</b> <br/>
 
+                                        </>
+                                    )}
+                                    {s.count && (
+                                        <>
+                                            🔢  Quantity: <b>{s.count}</b> <br/>
+                                        </>
+                                    )}
+                                    {s.workType && s.diagonal && (
+                                        <>
+                                            🔧 Service: <b>{workTypes.find(t => t.value === s.workType)?.label} (${s.price} * {s.count})</b><br/>
+                                        </>
+                                    )}
+                                    {s.mountType && (
+                                        <div>
+                                            <div>🔩 Mount: <b>{mount.find(m => m.value === s.mountType)?.label}</b></div>
+                                            <div style={{ marginLeft: "2.2vh" }}>Quantity: <b>{s.mountCount}</b></div>
+                                            <div style={{ marginLeft: "2.2vh" }}>Total: 💲{s.mountPrice * s.mountCount}</div>
                                         </div>
                                     )}
 
-                                    {s.message && <div>📝 Комментарий: {s.message}</div>}
+
+                                    {s.message && <div>📝 Note: {s.message}</div>}
                                     {s.materials?.length > 0 && (
                                         <div>
-                                            📦 Материалы:
+                                            📦 Materials:
                                             <ul className="mb-0">
                                                 {s.materials.map((mat, idx) => (
                                                     <li key={idx}>
@@ -1203,7 +1331,7 @@ const Form = () => {
                                     )}
                                     {s.addons?.length > 0 && (
                                         <div>
-                                            🛠️ Дополнительные услуги:
+                                            🛠️ Additional services:
                                             <ul className="mb-0">
                                                 {s.addons.map((mat, idx) => (
                                                     <li key={idx}>
@@ -1237,12 +1365,17 @@ const Form = () => {
                     {/* Общая сумма */}
                     <div className="text-end mt-3">
                         <h5>
-                            💰 Общая сумма:{" "}
+                            💰 Total:{" "}
                             <b>
                                 {customTotal !== null
                                     ? `${customTotal} $`
                                     : `${services
-                                        .map(s => ((s.price + s.mountPrice ) * s.count + (s.materialPrice||0) + (s.addonsPrice||0)))
+                                        .map(s => (
+                                            (s.price + s.mountPrice) * s.count +
+                                            (s.materialPrice || 0) +
+                                            (s.addonsPrice || 0) +
+                                            (s.mountPrice * s.mountCount)
+                                        ))
                                         .reduce((a, b) => a + b, 0)
                                         .toLocaleString()} $`}
                             </b>
@@ -1250,7 +1383,7 @@ const Form = () => {
 
                         {!isEditingTotal ? (
                             <button className="btn btn-sm btn-outline-secondary mt-2" onClick={() => setIsEditingTotal(true)}>
-                                Изменить вручную
+                                Change total
                             </button>
                         ) : (
                             <div className="mt-2 d-flex flex-row gap-2 justify-content-end">
@@ -1282,19 +1415,58 @@ const Form = () => {
             )}
             {!isAdding && (
                 <div>
-                    <button className="btn btn-primary" style={{ marginRight: "2vh" }} onClick={startAdding}>
-                        Добавить услугу
+                    <button
+                        className="btn btn-primary"
+                        style={{ marginRight: "2vh" }}
+                        onClick={startAdding}
+                        disabled={loadingOrderTODB} // 🔒 тоже блокируем на время загрузки
+                    >
+                        Add service
                     </button>
-                    {!updateOrder ? (
-                        <button className="btn btn-success" onClick={submitToGoogleSheets}>
-                            Отправить заявку в Google Таблицу
+
+                    {!updateOrder && !loadingOrderTODB ? (
+                        <button
+                            className="btn btn-success"
+                            onClick={submitToGoogleSheets}
+                            disabled={loadingOrderTODB}  // 🔒 блокируем кнопку при загрузке
+                        >
+                            {loadingOrderTODB ? (
+                                <>
+                    <span
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                        style={{ marginRight: "8px" }}
+                    />
+                                    Отправка...
+                                </>
+                            ) : (
+                                "Save order"
+                            )}
                         </button>
                     ) : (
-                        <button className="btn btn-success" onClick={updateOrderInMongoAndSheets}>
-                            Сохранить изменения в таблицу
+                        <button
+                            className="btn btn-success"
+                            onClick={updateOrderInMongoAndSheets}
+                            disabled={loadingOrderTODB} // 🔒 блокируем при загрузке
+                        >
+                            {loadingOrderTODB ? (
+                                <>
+                    <span
+                        className="spinner-border spinner-border-sm"
+                        role="status"
+                        aria-hidden="true"
+                        style={{ marginRight: "8px" }}
+                    />
+                                    Saving...
+                                </>
+                            ) : (
+                                "Save changes to sheets"
+                            )}
                         </button>
                     )}
                 </div>
+
 
 
             )}
@@ -1315,7 +1487,7 @@ const Form = () => {
 
 
                     <div className="d-flex flex-column  gap-3 mb-3 align-items-stretch justify-content-center">
-                        <button className={"btn btn-info"} onClick={e => setIsAddingMount(true)}>➕ Навес</button>
+                        <button className={"btn btn-info"} onClick={e => setIsAddingMount(true)}>➕ Mount</button>
                         {isAddingMount && (
                             <div className="card p-3 mb-3 d-flex flex-row gap-3 flex-column text-center">
                                 <div className=" p-3 position-relative">
@@ -1363,7 +1535,7 @@ const Form = () => {
                                             });
                                         }}
                                         type="text"
-                                        placeholder="Диагональ"
+                                        placeholder="Diagonal"
                                     />
 
                                     <input
@@ -1371,7 +1543,7 @@ const Form = () => {
                                         name={"count"}
                                         type="number"
                                         min={1}
-                                        placeholder={"Количество"}
+                                        placeholder={"Quantity"}
                                         value={currentService.count}
                                         onChange={(e) =>
                                             setCurrentService({
@@ -1461,7 +1633,7 @@ const Form = () => {
 
                                             }}
                                         >
-                                            <option value="">Тип крепления</option>
+                                            <option value="">Type of mount</option>
                                             <option value="fixed_mount">Fixed — $39</option>
                                             <option value="titling_mount">Tilting — $49</option>
                                             <option value="full_motion">Full motion — $69</option>
@@ -1499,7 +1671,7 @@ const Form = () => {
                         )}
                         {currentService.mountData?.length > 0 && (
                             <div className="mb-3">
-                                <h6>🛠️ Дополнительные услуги:</h6>
+                                <h6>🛠️Additional Services:</h6>
                                 <ul className="list-group">
                                     {currentService.addons.map((mat, idx) => (
                                         <li key={idx} className="list-group-item d-flex justify-content-between">
@@ -1525,7 +1697,7 @@ const Form = () => {
                             </div>
                         )}
 
-                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>➕ Услуги</button>
+                        <button className={"btn btn-warning"} onClick={e => setIsAddingAddons(true)}>➕ Services</button>
                         {isAddingAddons && (
                             <div className=" card p-3 text-center mb-3">
                                 <div className=" p-3 position-relative">
@@ -1536,7 +1708,7 @@ const Form = () => {
                                         onClick={() => setIsAddingAddons(false)} // закрыть форму добавления
                                     ></button>
                                 </div>
-                                <h5>Выберите услуги</h5>
+                                <h5>Choose services</h5>
                                 <div className={"d-flex flex-row flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
                                     <select
                                         className="form-select"
@@ -1547,7 +1719,7 @@ const Form = () => {
                                             setSelectedAddon(addon || null);
                                         }}
                                     >
-                                        <option value="">Выберите услугу</option>
+                                        <option value="">Chosee service</option>
                                         {additionalServices.map((m, i) => (
                                             <option key={i} value={m.value}>{m.label} — {m.price}$</option>
                                         ))}
@@ -1566,7 +1738,7 @@ const Form = () => {
                                     className="btn btn-sm btn-outline-primary"
                                     onClick={saveAddon}
                                 >
-                                    💾 Сохранить
+                                    💾 Save
                                 </button>
 
                             </div>
@@ -1574,7 +1746,7 @@ const Form = () => {
 
                         {currentService.addons?.length > 0 && (
                             <div className="mb-3">
-                                <h6>🛠️ Дополнительные услуги:</h6>
+                                <h6>🛠️ Additional Services:</h6>
                                 <ul className="list-group">
                                     {currentService.addons.map((mat, idx) => (
                                         <li key={idx} className="list-group-item d-flex justify-content-between">
@@ -1599,7 +1771,7 @@ const Form = () => {
                                 </ul>
                             </div>
                         )}
-                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>➕ Материалы</button>
+                        <button className={"btn btn-primary"} onClick={e => setIsAddingMaterials(true)}>➕ Material</button>
                         {isAddingMaterials && (
                             <div className="card p-3 text-center mb-3">
                                 <div className="p-3 position-relative">
@@ -1610,7 +1782,7 @@ const Form = () => {
                                         onClick={handleCloseMaterialEdit}
                                     ></button>
                                 </div>
-                                <h5>{editAddonMaterialIndex !== null ? "Редактировать материал" : "Добавить материал"}</h5>
+                                <h5>{editAddonMaterialIndex !== null ? "Edit material" : "Add material"}</h5>
                                 <div className={"d-flex flex-row flex-md-row gap-3 mb-3 align-items-stretch justify-content-center"}>
                                     <select
                                         className="form-select"
@@ -1620,7 +1792,7 @@ const Form = () => {
                                             setSelectedAddMaterials(mat);
                                         }}
                                     >
-                                        <option value="">Выберите материал</option>
+                                        <option value="">Chosee material</option>
                                         {materialsList.map((m, i) => (
                                             <option key={i} value={m.value}>{m.label} — {m.price}$</option>
                                         ))}
@@ -1638,7 +1810,7 @@ const Form = () => {
                                     className="btn btn-sm btn-outline-primary"
                                     onClick={saveMaterial}
                                 >
-                                    💾 Сохранить
+                                    💾 Save
                                 </button>
                             </div>
                         )}
@@ -1673,14 +1845,14 @@ const Form = () => {
                             name="message"
                             className="form-control"
                             type="text"
-                            placeholder="Дополнительная информация"
+                            placeholder="Additional note"
                             value={currentService.message}
                             onChange={handleServiceChange}
                         />
                     </div>
 
                     <button className="btn btn-success" onClick={saveService}>
-                        {editIndex !== null ? "Сохранить изменения" : "Добавить"}
+                        {editIndex !== null ? "Save changes" : "Add"}
                     </button>
                 </div>
             )}

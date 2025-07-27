@@ -50,7 +50,6 @@ const OwnOrders = () => {
         { id: 'A', name: 'TEAM1' },
         { id: 'B', name: 'TEAM2' },
         { id: 'C', name: 'TEAM3' },
-        { id: 'W', name: 'TEAM11' }
     ];
 
     const getBufferStatus = (order) => {
@@ -135,7 +134,8 @@ const OwnOrders = () => {
             "Нужно согласование": "#ffa726",
             "Оформлен": "#2e7d32",
             "Прозвонить завтра": "#e6cff1",
-            "Статус заказа": "#e0e0e0"
+            "Статус заказа": "#e0e0e0",
+            "Отменен": "#600404"
         };
         return statusColors[status] || "#e0e0e0";
     };
@@ -372,14 +372,14 @@ const OwnOrders = () => {
 
             <div className="mt-4">
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2 className="mb-0">📋 Мои заказы</h2>
+                    <h2 className="mb-0">📋 My orders</h2>
                     <button
                         className="btn btn-outline-primary btn-sm"
                         onClick={handleRefresh}
                         disabled={isLoading}
                     >
                         <IoRefresh className="me-1" />
-                        Обновить
+                        Reload
                     </button>
                 </div>
 
@@ -394,7 +394,7 @@ const OwnOrders = () => {
                                 <div className="card-body">
                                     <h5 className="card-title text-primary">
                                         <IoCard className="me-2" />
-                                        Всего заказов
+                                        Total orders
                                     </h5>
                                     <h3 className="text-primary mb-0">{orders.count || 0}</h3>
                                 </div>
@@ -405,7 +405,7 @@ const OwnOrders = () => {
                                 <div className="card-body">
                                     <h5 className="card-title text-success">
                                         <IoCheckmarkCircle className="me-2" />
-                                        Завершено
+                                        Completed
                                     </h5>
                                     <h3 className="text-success mb-0">
                                         {orders.orders?.filter(o => o.text_status === 'Оформлен').length || 0}
@@ -418,7 +418,7 @@ const OwnOrders = () => {
                                 <div className="card-body">
                                     <h5 className="card-title text-warning">
                                         <IoTimeOutline className="me-2" />
-                                        В работе
+                                        In progress
                                     </h5>
                                     <h3 className="text-warning mb-0">
                                         {orders.orders?.filter(o => o.text_status === 'В работе').length || 0}
@@ -438,7 +438,7 @@ const OwnOrders = () => {
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
                         >
-                            <option value="all">Все заказы</option>
+                            <option value="all">All orders</option>
                             {uniqueStatuses.map(status => (
                                 <option key={status} value={status}>{status}</option>
                             ))}
@@ -481,6 +481,10 @@ const OwnOrders = () => {
                                             >
                                                 {order.text_status || 'Без статуса'}
                                             </span>
+                                            {order.text_status === "Оформлен" && (
+                                                <button className={"btn badge btn-danger px-3"}>Cancel</button>
+                                            )}
+
 
                                             {/* Статус буфера */}
                                             {(() => {
@@ -512,9 +516,13 @@ const OwnOrders = () => {
                                         <div className="mb-2">
                                             <small className="text-muted">
                                                 <IoLocation className="me-1" />
-                                                {order.address || order.city || 'Адрес не указан'}
+                                                {order.address || 'Address not specified'}
+                                                {order.zip_code
+                                                    ? <span style={{ marginLeft: "8px" }}>{order.zip_code}</span>
+                                                    : <span style={{ marginLeft: "8px" }}>ZIP code not specified</span>}
                                             </small>
                                         </div>
+
 
                                         <div className="mb-2">
                                             <small className="text-muted">
@@ -701,7 +709,7 @@ const OwnOrders = () => {
                                                     Номер телефона
                                                 </h6>
                                                 <h4 className="text-primary mb-3">
-                                                    {formatPhone(selectedOrder.phone) || 'Не указан'}
+                                                    {`+1${formatPhone(selectedOrder.phone)}` || 'Не указан'}
                                                 </h4>
                                                 <button
                                                     className="btn btn-outline-primary btn-sm me-2"

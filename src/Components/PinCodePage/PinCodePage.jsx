@@ -23,7 +23,7 @@ const PinCodePage = () => {
             setError('');
             setSuccessMessage(''); // Очищаем предыдущие сообщения
         } else {
-            setError("PIN-код состоит из 4 цифр");
+            setError("PIN-code of 4 digit");
         }
     };
 
@@ -93,10 +93,8 @@ const PinCodePage = () => {
                         <div className="card shadow-sm">
                             <div className="card-body p-4">
                                 <div className="text-center mb-4">
-                                    <h4 className="card-title mb-2">Введите PIN-код</h4>
-                                    <p className="text-muted small mb-0">
-                                        Введите 4-значный код для входа
-                                    </p>
+                                    <h4 className="card-title mb-2">Enter PIN-code</h4>
+
                                 </div>
 
                                 {/* Сообщения об ошибках */}
@@ -169,7 +167,7 @@ const PinCodePage = () => {
                                                 height: '60px',
                                                 fontSize: '16px'
                                             }}
-                                            title="Очистить все"
+                                            title="Clear all"
                                         >
                                             <IoClose size={20} />
                                         </button>
@@ -197,7 +195,7 @@ const PinCodePage = () => {
                                                 height: '60px',
                                                 fontSize: '16px'
                                             }}
-                                            title="Удалить последнюю цифру"
+                                            title="Delete last digit"
                                         >
                                             <IoBackspaceOutline size={20} />
                                         </button>
@@ -215,10 +213,10 @@ const PinCodePage = () => {
                                             {isLoading ? (
                                                 <>
                                                     <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                                                    Проверка...
+                                                    Checking...
                                                 </>
                                             ) : (
-                                                'Войти'
+                                                'Enter'
                                             )}
                                         </button>
                                     </div>
@@ -227,10 +225,10 @@ const PinCodePage = () => {
                                 {/* Показываем прогресс */}
                                 <div className="text-center mt-3">
                                     <small className="text-muted">
-                                        Введено: {pincode.length}/4
+                                        Entered: {pincode.length}/4
                                         {userData && (
                                             <span className="ms-2">
-                                                | Пользователь: {telegramUsername}
+                                                | User: {telegramUsername}
                                             </span>
                                         )}
                                     </small>
