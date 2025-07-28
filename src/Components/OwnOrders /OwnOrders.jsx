@@ -709,7 +709,7 @@ const OwnOrders = () => {
                                                     Номер телефона
                                                 </h6>
                                                 <h4 className="text-primary mb-3">
-                                                    {`+1${formatPhone(selectedOrder.phone)}` || 'Не указан'}
+                                                    {`${formatPhone(selectedOrder.phone)}` || 'Не указан'}
                                                 </h4>
                                                 <button
                                                     className="btn btn-outline-primary btn-sm me-2"

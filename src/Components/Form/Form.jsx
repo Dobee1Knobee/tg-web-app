@@ -94,6 +94,7 @@ const Form = () => {
     const [loadingOrderTODB,setLoadingOrderTODB] = useState(false);
     const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useContext(ToastContext);
     const [showDupAfterChange, setShowDupAfterChange] = useState(true);
+    const [total,setTotal] = useState(0);
     const formatPhoneNumber = (value) => {
         // Удаляем всё, кроме цифр
         const digits = value.replace(/\D/g, '');
@@ -111,6 +112,10 @@ const Form = () => {
 
         return formatted;
     };
+    // const handleCancelSubmitedOrder = (e) => {
+    //     const order_id = e.target.value;
+    //
+    // }
 
     const handleChange = (e) => {
         const input = e.target.value;
@@ -436,6 +441,20 @@ const Form = () => {
         setIsEditingTotal(false);
         setEditIndex(null);
     };
+    useEffect(() => {
+        const calculatedTotal = customTotal !== null
+            ? Number(customTotal)
+            : services
+                .map(s => (
+                    (s.price || 0) + (s.mountPrice || 0) * (s.count || 0) +
+                    (s.materialPrice || 0) +
+                    (s.addonsPrice || 0) +
+                    ((s.mountPrice || 0) * (s.mountCount || 0))
+                ))
+                .reduce((a, b) => a + b, 0);
+
+        setTotal(calculatedTotal);
+    }, [services, customTotal]);
 
     const saveMaterial = () => {
         if (!selectedAddMaterials) return;
@@ -543,16 +562,16 @@ const Form = () => {
             const manager_id = managerId ? `${managerId}` : "N/A";
             const team_id = team ? team : "N/A";
 
-            const total = customTotal !== null
-                ? Number(customTotal)
-                : services
-                    .map(s => (
-                        (s.price + s.mountPrice) * s.count +
-                        (s.materialPrice || 0) +
-                        (s.addonsPrice || 0) +
-                        (s.mountPrice * s.mountCount)
-                    ))
-                    .reduce((a, b) => a + b, 0);
+            // const total = customTotal !== null
+            //     ? Number(customTotal)
+            //     : services
+            //         .map(s => (
+            //             (s.price || 0 + s.mountPrice || 0) * s.count || 0 +
+            //             (s.materialPrice || 0) +
+            //             (s.addonsPrice || 0) +
+            //             ((s.mountPrice || 0 )* s.mountCount || 0)
+            //         ))
+            //         .reduce((a, b) => a + b, 0);
 
 
             const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
@@ -579,7 +598,7 @@ const Form = () => {
                 master: selectedMaster,
                 comment: commentOrder,
                 additionalTelephone: additionalTelephones,
-                total,
+                total : total,
                 services: servicesWithMountCount, // вот сюда вставляем обновлённые услуги
             };
 
@@ -609,7 +628,7 @@ const Form = () => {
                 if (linkResult.success) {
                     console.log('✅ Форма успешно привязана к заказу');
                 } else {
-                    console.warn('⚠️ Не удалось привязать форму:', linkResult.error);
+                    showInfo(`⚠️ Не удалось привязать форму:${linkResult.error}`)
                     // Не падаем, просто логируем
                 }
             }
@@ -629,7 +648,7 @@ const Form = () => {
                 client_id: clientId,
                 master: selectedMaster,
                 comment: commentOrder,
-                total,
+                total:total,
                 services,
                 leadId: finalLeadId, // ✅ leadId из сервера
             };
@@ -676,16 +695,16 @@ const Form = () => {
     const updateOrderInMongoAndSheets = async () => {
         const currentLeadId = leadId; // Используем существующий leadId
 
-        const total = customTotal !== null
-            ? Number(customTotal)
-            : services
-                .map(s => (
-                    (s.price + s.mountPrice) * s.count +
-                    (s.materialPrice || 0) +
-                    (s.addonsPrice || 0) +
-                    (s.mountPrice * s.mountCount)
-                ))
-                .reduce((a, b) => a + b, 0);
+        // const total = customTotal !== null
+        //     ? Number(customTotal)
+        //     : services
+        //         .map(s => (
+        //             (s.price || 0 + s.mountPrice || 0) * s.count || 0 +
+        //             (s.materialPrice || 0) +
+        //             (s.addonsPrice || 0) +
+        //             ((s.mountPrice || 0) * s.mountCount || 0)
+        //         ))
+        //         .reduce((a, b) => a + b, 0);
 
 
 
@@ -730,7 +749,7 @@ const Form = () => {
             zip_code: zipCode,
             owner: telegramUsername,
             text_status:status,
-            formId: orderIdInput,  // ✅ ИСПРАВЛЕНО: было setOrderIdInput
+            formId: orderIdInput,
             leadName,
             address: addressLead,
             phone: phoneNumberLead,
@@ -738,7 +757,7 @@ const Form = () => {
             city,
             master: selectedMaster,
             comment: commentOrder,
-            total,
+            total:total,
             services: filteredServices,
             leadId: currentLeadId,
             mountCount : mountCount,
@@ -835,7 +854,7 @@ const Form = () => {
                 city,
                 master: selectedMaster,
                 comment: commentOrder,
-                total,
+                total: total,
                 services: filteredServices,
                 leadId: currentLeadId, // ← Используем тот же leadId
             };
@@ -1368,20 +1387,20 @@ const Form = () => {
                     {/* Общая сумма */}
                     <div className="text-end mt-3">
                         <h5>
-                            💰 Total:{" "}
-                            <b>
-                                {customTotal !== null
-                                    ? `${customTotal} $`
-                                    : `${services
-                                        .map(s => (
-                                            (s.price + s.mountPrice) * s.count +
-                                            (s.materialPrice || 0) +
-                                            (s.addonsPrice || 0) +
-                                            (s.mountPrice * s.mountCount)
-                                        ))
-                                        .reduce((a, b) => a + b, 0)
-                                        .toLocaleString()} $`}
-                            </b>
+                            💰 Total:{`${total}$`}
+                            {/*<b>*/}
+                            {/*    {customTotal !== null*/}
+                            {/*        ? `${customTotal} $`*/}
+                            {/*        : `${services*/}
+                            {/*            .map(s => (*/}
+                            {/*                (s.price || 0 + s.mountPrice || 0) * s.count || 0 +*/}
+                            {/*                (s.materialPrice || 0) +*/}
+                            {/*                (s.addonsPrice || 0) +*/}
+                            {/*                ((s.mountPrice || 0) * s.mountCount)*/}
+                            {/*            ))*/}
+                            {/*            .reduce((a, b) => a + b, 0)*/}
+                            {/*            .toLocaleString()} $`}*/}
+                            {/*</b>*/}
                         </h5>
 
                         {!isEditingTotal ? (

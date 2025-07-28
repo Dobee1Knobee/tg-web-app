@@ -39,7 +39,7 @@ const SearchOrder = () => {
     const mongoUser = useUserByAt(telegramUsername);
 
     // ✅ хуки для поиска
-    const { response, error, loading, checkOrder } = useCheckOrder();
+    const { response, error, loading, checkOrder, isOwnerPhone } = useCheckOrder();
     const { data: leadData, loading: leadLoading, error: leadError, isOwner } = useSearchByLeadId(orderId, telegramUsername);
 
     const inputRef = useRef(null);
@@ -86,7 +86,7 @@ const SearchOrder = () => {
 
         switch (searchMode) {
             case "phone":
-                checkOrder(lookingNumber);
+                checkOrder(lookingNumber,telegramUsername);
                 break;
             case "order":
                 setOrderId(displayValue.trim());
@@ -112,6 +112,17 @@ const SearchOrder = () => {
             order.owner === mongoUser.at ||             // "devapi1" === "devapi1"
             order.owner === telegramUsername            // "devapi1" === "devapi1"
         ) ;
+    };
+
+    // ✅ определяем права доступа для конкретного заказа в зависимости от режима поиска
+    const getAccessRights = (order) => {
+        if (searchMode === "phone") {
+            // для поиска по телефону проверяем каждый заказ отдельно
+            return checkOrderOwnership(order);
+        } else if (searchMode === "order") {
+            return isOwner; // для поиска по Lead ID используем isOwner
+        }
+        return false;
     };
 
     // ✅ обработка открытия заказа
@@ -172,7 +183,8 @@ const SearchOrder = () => {
 
     // ✅ рендерим компактную карточку заказа
     const renderOrderCard = (order, index) => {
-        // Всегда используем локальную проверку владельца для единообразия
+        // Получаем права доступа для конкретного заказа
+        const hasAccess = getAccessRights(order);
 
         const orderDate = formatDate(order.created_at || order.date);
         const statusColor = statusColors[order.text_status] || "#e0e0e0";
@@ -192,7 +204,7 @@ const SearchOrder = () => {
                         )}
                     </div>
                     <button
-                        className={`btn ${isOwner ? 'btn-success' : 'btn-outline-warning'} btn-sm`}
+                        className={`btn ${hasAccess ? 'btn-success' : 'btn-outline-warning'} btn-sm`}
                         onClick={() => handleOpenOrder(order)}
                     >
                         <i className="bi bi-box-arrow-up-right me-1"></i>
@@ -237,7 +249,7 @@ const SearchOrder = () => {
                             <span className="fw-bold">Phone:</span>
                         </div>
                         <div className="col-auto">
-                            {isOwner ? (
+                            {hasAccess ? (
                                 <a href={`tel:${order.phone}`} className="text-decoration-none">
                                     {order.phone}
                                 </a>
@@ -250,7 +262,7 @@ const SearchOrder = () => {
                     </div>
                 )}
 
-                {!isOwner && (
+                {!hasAccess && (
                     <div className="row g-0 mt-2">
                         <div className="col-12">
                             <small className="text-warning">

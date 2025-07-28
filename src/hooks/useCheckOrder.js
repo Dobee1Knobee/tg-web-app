@@ -4,17 +4,20 @@ export const useCheckOrder = () => {
     const [response, setResponse] = useState(null);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [isOwnerPhone, setIsOwnerPhone] = useState(false);
 
-    const checkOrder = async (phone) => {
+    const checkOrder = async (phone, at) => {
         if (!phone) {
             setResponse(null);
             setError(null);
             setLoading(false);
+            setIsOwnerPhone(false);
             return;
         }
 
         setLoading(true);
         setError(null);
+        setIsOwnerPhone(false);
 
         try {
             const res = await fetch(
@@ -29,6 +32,9 @@ export const useCheckOrder = () => {
             }
 
             const data = await res.json();
+
+            // Больше не нужно устанавливать isOwnerPhone здесь,
+            // так как теперь проверка идет для каждого заказа отдельно
             setResponse(data);
         } catch (err) {
             setError("Ошибка сети или сервера");
@@ -38,5 +44,5 @@ export const useCheckOrder = () => {
         }
     };
 
-    return { response, error, loading, checkOrder, setResponse, setError };
+    return { response, error, loading, checkOrder, setResponse, setError, isOwnerPhone };
 };
