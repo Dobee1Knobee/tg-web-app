@@ -8,6 +8,7 @@ import { useCheckOrder } from "../../hooks/useCheckOrder";
 import {useTelegram} from "../../hooks/useTelegram";
 import {useUserByAt} from "../../hooks/findUserByAt";
 import {useEndShift, useStartShift} from "../../hooks/startEndShift";
+import SimpleButton from "../Button/Button";
 
 const WelcomePage = () => {
     const navigate = useNavigate();
@@ -15,7 +16,7 @@ const WelcomePage = () => {
     const [displayValue, setDisplayValue] = useState("");
     const [lookingNumber, setLookingNumber] = useState("");
     const [isOnShift, setIsOnShift] = useState(false);
-    const [searchMode, setSearchMode] = useState("phone"); // "phone" или "order"
+    const [searchMode, setSearchMode] = useState("phone");
 
     const { response, error, loading, checkOrder } = useCheckOrder();
     const inputRef = useRef(null);
@@ -23,7 +24,13 @@ const WelcomePage = () => {
     const telegramUsername = user?.username || "devapi1";
     const mongoUser = useUserByAt(telegramUsername);
 
-    // Правильное использование хуков
+    const hoverColors = {
+        new: '#e3f2fd',      // Очень светло-голубой
+        search: '#fff3e0',    // Очень светло-оранжевый
+        orders: '#e8f5e8',    // Очень светло-зеленый
+        buffer: '#f3e5f5',    // Очень светло-фиолетовый
+    };
+
     const { startShift, loading: startLoading, error: startError, success: startSuccess } = useStartShift();
     const { endShift, loading: endLoading, error: endError, success: endSuccess } = useEndShift();
 
@@ -64,7 +71,6 @@ const WelcomePage = () => {
         }, 0);
     };
 
-    // ИСПРАВЛЕННЫЕ функции для работы со сменой
     const handleStartShift = async () => {
         try {
             const result = await startShift(telegramUsername);
@@ -83,7 +89,6 @@ const WelcomePage = () => {
         }
     };
 
-    // ДОБАВЛЯЕМ недостающую функцию handleShiftToggle
     const handleShiftToggle = async () => {
         if (isOnShift) {
             await handleEndShift();
@@ -99,7 +104,6 @@ const WelcomePage = () => {
         }
     }, [mongoUser]);
 
-    // Обновляем состояние при успешном выполнении операций
     useEffect(() => {
         if (startSuccess) {
             setIsOnShift(true);
@@ -118,120 +122,177 @@ const WelcomePage = () => {
         }
     }, [isSearching]);
 
-    // Стили для красивого свитчера
+    // Улучшенные стили
+    const pageStyles = {
+        container: {
+            background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+            minHeight: '100vh',
+            padding: '20px',
+        },
+        welcomeCard: {
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '20px',
+            padding: '32px 24px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            maxWidth: '380px',
+            width: '100%',
+            margin: '0 auto',
+        },
+        greeting: {
+            fontSize: '24px',
+            fontWeight: '600',
+            color: '#2d3748',
+            textAlign: 'center',
+            marginBottom: '24px',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        },
+        buttonsContainer: {
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+            marginBottom: '24px',
+        }
+    };
+
+    // Улучшенные стили для свитчера
     const switcherStyles = {
         container: {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '10px',
-            marginTop: '20px',
-            padding: '20px',
+            gap: '12px',
+            marginTop: '24px',
         },
         switch: {
             position: 'relative',
-            width: '200px',
-            height: '50px',
+            width: '180px',
+            height: '48px',
             background: isOnShift
                 ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%)'
                 : 'linear-gradient(135deg, #51cf66 0%, #40c057 100%)',
-            borderRadius: '25px',
+            borderRadius: '24px',
             cursor: startLoading || endLoading ? 'not-allowed' : 'pointer',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
             border: 'none',
             boxShadow: isOnShift
-                ? '0 8px 25px rgba(255, 107, 107, 0.3)'
-                : '0 8px 25px rgba(81, 207, 102, 0.3)',
+                ? '0 6px 20px rgba(255, 107, 107, 0.25)'
+                : '0 6px 20px rgba(81, 207, 102, 0.25)',
             opacity: startLoading || endLoading ? 0.7 : 1,
         },
         slider: {
             position: 'absolute',
             top: '3px',
-            left: isOnShift ? '147px' : '3px',
-            width: '44px',
-            height: '44px',
+            left: isOnShift ? '129px' : '3px',
+            width: '42px',
+            height: '42px',
             background: 'white',
             borderRadius: '50%',
             transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+            boxShadow: '0 3px 8px rgba(0, 0, 0, 0.15)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '16px',
+            fontSize: '14px',
         },
         label: {
             position: 'absolute',
             width: '100%',
             height: '100%',
-
-            marginTop:"-1.6rem",
+            marginTop:"-1.5rem",
             display: 'flex',
             alignItems: 'center',
-            justifyContent: isOnShift ? 'flex-start' : 'flex-end',
-            paddingLeft: isOnShift ? '6vh' : '0',
-            paddingRight: isOnShift ? '0' : '7vh',
+            justifyContent: 'center',
             color: 'white',
             fontWeight: '600',
             fontSize: '13px',
             pointerEvents: 'none',
+            paddingLeft: isOnShift ? '0' : '8px',
+            paddingRight: isOnShift ? '8px' : '0',
         },
         error: {
-            fontSize: '11px',
+            fontSize: '12px',
             color: '#dc3545',
-            marginTop: '5px',
+            textAlign: 'center',
             fontWeight: '500',
+            padding: '8px 12px',
+            background: 'rgba(220, 53, 69, 0.1)',
+            borderRadius: '8px',
+            border: '1px solid rgba(220, 53, 69, 0.2)',
         }
     };
 
     return (
-        <div className="d-flex flex-column min-vh-100 align-items-center mt-5 overflow-y-hidden">
+        <div style={pageStyles.container}>
             <Header />
 
-            <div className="d-flex flex-column gap-3 justify-content-center align-items-center mt-5">
+            <div className="d-flex flex-column justify-content-center align-items-center mt-5">
                 {!isSearching && (
-                    <div className="w-100 text-center">
-                        <h3>Hi, {mongoUser?.name}</h3>
+                    <div style={pageStyles.welcomeCard}>
+                        <div style={pageStyles.greeting}>
+                            Hi, {mongoUser?.name || 'User'}! 👋
+                        </div>
 
-                        <button className="btn btn-warning w-100 mb-3" onClick={() => navigate('/form')}>
-                            New order
-                        </button>
-                        <button className="btn btn-primary w-100 mb-3" onClick={() => navigate('/SearchOrder')}>
-                            Search order
-                        </button>
-                        <button className="btn btn-success w-100" onClick={() => navigate('/OwnOrders')}>My orders</button>
-                        <button className="btn btn-info w-100 mt-3" onClick={() => navigate('/BuferedOrders')}>Buffer</button>
-                        <button className="btn btn-danger w-100 mt-3" onClick={() => navigate('/BuferedOrders')}>Analytics</button>
-                    </div>
-                )}
+                        <div style={pageStyles.buttonsContainer}>
+                            <SimpleButton
+                                onClick={() => navigate('/form')}
+                                hoverColor={hoverColors.new}
+                                icon="bi bi-plus-circle"
+                            >
+                                New order
+                            </SimpleButton>
 
+                            <SimpleButton
+                                onClick={() => navigate('/SearchOrder')}
+                                hoverColor={hoverColors.search}
+                                icon="bi bi-search"
+                            >
+                                Search order
+                            </SimpleButton>
 
-            </div>
+                            <SimpleButton
+                                onClick={() => navigate('/OwnOrders')}
+                                hoverColor={hoverColors.orders}
+                                icon="bi bi-list-ul"
+                            >
+                                My orders
+                            </SimpleButton>
 
-            {/* КРАСИВЫЙ МИНИМАЛИСТИЧНЫЙ СВИТЧЕР */}
-            <div style={switcherStyles.container}>
-                <button
-                    onClick={handleShiftToggle}
-                    disabled={startLoading || endLoading}
-                    style={switcherStyles.switch}
-                >
-                    {/* Слайдер */}
-                    <div style={switcherStyles.slider}>
-                        {startLoading || endLoading ? '⏳' : (isOnShift ? '●' : '○')}
-                    </div>
+                            <SimpleButton
+                                onClick={() => navigate('/BuferedOrders')}
+                                hoverColor={hoverColors.buffer}
+                                icon="bi bi-archive"
+                            >
+                                Buffer
+                            </SimpleButton>
+                        </div>
 
-                    {/* Текст внутри свитчера */}
-                    <div style={switcherStyles.label}>
-                        {startLoading || endLoading
-                            ? 'Loading...'
-                            : (isOnShift ? 'Finish shift' : 'Start shift')
-                        }
-                    </div>
-                </button>
+                        {/* Красивый свитчер внутри карточки */}
+                        <div style={switcherStyles.container}>
+                            <button
+                                onClick={handleShiftToggle}
+                                disabled={startLoading || endLoading}
+                                style={switcherStyles.switch}
+                            >
+                                <div style={switcherStyles.slider}>
+                                    {startLoading || endLoading ? '⏳' : (isOnShift ? '●' : '○')}
+                                </div>
 
-                {/* Ошибки */}
-                {(startError || endError) && (
-                    <div style={switcherStyles.error}>
-                        {startError || endError}
+                                <div style={switcherStyles.label}>
+                                    {startLoading || endLoading
+                                        ? 'Loading...'
+                                        : (isOnShift ? 'Finish shift' : 'Start shift')
+                                    }
+                                </div>
+                            </button>
+
+                            {(startError || endError) && (
+                                <div style={switcherStyles.error}>
+                                    {startError || endError}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

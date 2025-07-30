@@ -13,6 +13,7 @@ import {useCheckOrder} from "../../hooks/useCheckOrder";
 import {useGetClient} from "../../hooks/useGetNumbersOfClient";
 import {ToastContext} from "../../context/ToastContext";
 import {useGetCities} from "../../hooks/useGetCitiesByTeam";
+import {useCountNotOwnersView} from "../../hooks/useCountNotOwnersView";
 
 const workTypes = [
     { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
@@ -41,19 +42,21 @@ const mount = [
     {label:"Full Motion", value: "full_motion",price:69},
 ]
 const materialsList = [
-    { label: "Brush wall plate", value: "brush_plate", price: 6 },
-    { label: "Cable channel rack", value: "cable_channel", price: 6 },
-    { label: "6ft extension cord", value: "ext6", price: 8 },
-    { label: "12ft extension cord", value: "ext12", price: 14 },
-    { label: "Soundbar mount", value: "soundbar_mount", price: 21 },
+    { label: "Сable channel rack", value: "cable_channel", price: 6 },
+    { label: "Soundbar mount Big ", value: "soundbar_mount_big", price: 99 },
+    { label: "Soundbar mount Regular", value: "soundbar_mount_small", price: 21 },
+    { label: "Xbox, PlayStation mount", value: "xbox_mount", price: 35 },
     { label: "Xbox, PlayStation mount", value: "xbox_mount", price: 35 },
     { label: "HDMI cable 118″", value: "hdmi_118", price: 14 },
     { label: "HDMI cable 196″", value: "hdmi_196", price: 24 },
+    { label: "6ft extension cord", value: "ext6", price: 8 },
+    { label: "12ft extension cord", value: "ext12", price: 14 },
 ];
 
 
 
 const statusColors = {
+    "Отменен" : "#470909",
     "Другой регион": "#00e5ff",
     "Невалидный": "#f44336",
     "Недозвон": "#9e9e9e",
@@ -95,6 +98,7 @@ const Form = () => {
     const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useContext(ToastContext);
     const [showDupAfterChange, setShowDupAfterChange] = useState(true);
     const [total,setTotal] = useState(0);
+    const [ownerUpd,setOwnerUpd] = useState("");
     const formatPhoneNumber = (value) => {
         // Удаляем всё, кроме цифр
         const digits = value.replace(/\D/g, '');
@@ -184,6 +188,16 @@ const Form = () => {
     const [found,setFound] = useState(false);
     const [addingTelephone, setAddingTelephone] = useState(false);
     const [clientId, setClientId] = useState("");
+    useEffect(() => {
+        if (ownerUpd !== telegramUsername) {
+            // Просто не делаем ничего, если владелец не совпадает
+            console.log(`Владелец заказа: ${ownerUpd}, текущий пользователь: ${telegramUsername}`);
+            return; // Выходим из эффекта, не возвращая значение
+        }
+
+        // Если владелец совпадает или не установлен, устанавливаем текущего пользователя
+        setOwnerUpd(telegramUsername);
+    }, [ownerUpd, telegramUsername]);
     useEffect(() => {
         const fetchFormAndClient = async () => {
             console.log("⚡ useEffect triggered, orderIdInput:", orderIdInput);
@@ -283,6 +297,7 @@ const Form = () => {
                 const data = await response.json();
 
                 setUpdateOrder(true);
+                setOwnerUpd(data.owner || "");
                 setStatus(data.text_status || "");
                 setAddressLead(data.address || "");
                 setZipCode(data.zip_code || "");
@@ -446,7 +461,7 @@ const Form = () => {
             ? Number(customTotal)
             : services
                 .map(s => (
-                    (s.price || 0) + (s.mountPrice || 0) * (s.count || 0) +
+                    (s.price  || 0 + s.mountPrice || 0) * (s.count || 0) +
                     (s.materialPrice || 0) +
                     (s.addonsPrice || 0) +
                     ((s.mountPrice || 0) * (s.mountCount || 0))
@@ -747,7 +762,7 @@ const Form = () => {
 
         const payloadUpdate = {
             zip_code: zipCode,
-            owner: telegramUsername,
+            owner: ownerUpd ,
             text_status:status,
             formId: orderIdInput,
             leadName,
@@ -875,10 +890,10 @@ const Form = () => {
             // 🆕 Улучшенное сообщение
             const successMessage = orderIdInput && orderIdInput.trim()
                 ? `✅ The order has been updated and linked to the form. Lead ID: ${currentLeadId}`
-                : `✅ The order has been successfully updated. Lead ID: ${currentLeadId}`;
+                : `✅ The order has been successfully updated order of ${ownerUpd}. Lead ID: ${currentLeadId}`;
 
 
-            alert(successMessage);
+            showSuccess(successMessage);
 
         } catch (err) {
             console.error("❌ Ошибка сети или CORS:", err);
@@ -895,10 +910,18 @@ const Form = () => {
         "Hartford", "New_Orleans"
     ];
     const [showList, setShowList] = useState(false);
-    const filtered = allCities.filter((c) =>
-        c.toLowerCase().includes(city.toLowerCase())
-    );
+    const filtered = cities
+        .filter((c) => {
 
+            // Проверяем, что c существует и имеет поле name
+            if (!c || !c.name || typeof c.name !== 'string') return false;
+
+            // Проверяем, что city тоже является строкой
+            if (!city || typeof city !== 'string') return false;
+
+            return c.name.toLowerCase().includes(city.toLowerCase());
+        })
+        .map(c => c.name); // Извлекаем только имена
 
     const removeAddon = (idx) => {
         const updated = [...currentService.addons];
@@ -910,11 +933,27 @@ const Form = () => {
         });
     };
 
-
+    const [showRestrictedView,setShowRestrictedView] = useState(false);
     const removeService = (index) => {
         setServices(services.filter((_, i) => i !== index));
     };
-    console.log(cities)
+    const {countNotOwnersView} = useCountNotOwnersView();
+    useEffect(() => {
+        // Вызываем только когда showRestrictedView становится true
+        if (showRestrictedView) {
+            const recordAccess = async () => {
+                try {
+                    await countNotOwnersView(leadId, telegramUsername); // добавь order_id!
+                    console.log('Доступ записан');
+                } catch (error) {
+                    console.error('Ошибка записи доступа:', error);
+                    // Можно показать ошибку пользователю или просто залогировать
+                }
+            };
+
+            recordAccess();
+        }
+    }, [showRestrictedView]);
     return (
         <div className="container py-4">
 
@@ -945,7 +984,7 @@ const Form = () => {
 
 
             <div className="mb-3">
-                <input className="form-control" placeholder={`Owner (manager) : ${ownerName}`} readOnly />
+                <input className="form-control" placeholder={`Owner (manager) : ${ownerUpd || ownerName}`} readOnly />
             </div>
 
             <div className="mb-3">
@@ -1088,7 +1127,24 @@ const Form = () => {
                     <span className="ms-2">Поиск номера телефона...</span>
                 </div>
             )}
-            {(found || pathname.includes("/change/")) && (
+            {(ownerUpd !== telegramUsername && !showRestrictedView && pathname.includes("/change/") && (
+                <div className={"container d-flex flex-column"}>
+                    <div className="alert alert-warning text-center">
+                        <i className="bi bi-shield-exclamation me-2"></i>
+                        <strong>Access Restricted</strong>
+                        <p className="mb-0 mt-2">Phone numbers are hidden because you are not the owner of this order.</p>
+                    </div>
+
+                    <button
+                        className="btn btn-outline-primary mx-auto"
+                        onClick={() => setShowRestrictedView(true)}
+                    >
+                        <i className="bi bi-eye me-2"></i>
+                        View Phone Numbers Anyway
+                    </button>
+                </div>
+            ))}
+            {(found || pathname.includes("/change/")) && ownerUpd === telegramUsername || showRestrictedView && (
                 <div className="container d-flex flex-column">
                     {/* Основной номер */}
                     <div className="mb-3">
@@ -1250,13 +1306,14 @@ const Form = () => {
                         style={{ maxHeight: 120, overflowY: "auto" }}
                     >
                         {filtered.length > 0 ? (
-                            filtered.map((c) => (
+                            filtered.map((cityName, index) => ( // Добавляем index для key
                                 <li
-                                    key={c}
+                                    key={`${cityName}-${index}`} // Более уникальный key
                                     className="list-group-item list-group-item-action"
-                                    onMouseDown={() => setCity(c)}
+                                    onMouseDown={() => setCity(cityName)}
+                                    style={{ cursor: 'pointer' }} // Визуальная подсказка
                                 >
-                                    {c}
+                                    {cityName}
                                 </li>
                             ))
                         ) : (

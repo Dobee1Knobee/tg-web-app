@@ -155,10 +155,9 @@ const OwnOrders = () => {
     const formatPhone = (phone) => {
         if (!phone) return "";
         const cleaned = phone.replace(/\D/g, '');
-        if (cleaned.length === 10) {
+
             return `+1 (${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6,10)}`;
-        }
-        return phone;
+
     };
 
     const getFilteredOrders = () => {
@@ -481,9 +480,9 @@ const OwnOrders = () => {
                                             >
                                                 {order.text_status || 'Без статуса'}
                                             </span>
-                                            {order.text_status === "Оформлен" && (
-                                                <button className={"btn badge btn-danger px-3"}>Cancel</button>
-                                            )}
+                                            {/*{order.text_status === "Оформлен" && (*/}
+                                            {/*    <button className={"btn badge btn-danger px-3"}>Cancel</button>*/}
+                                            {/*)}*/}
 
 
                                             {/* Статус буфера */}
@@ -719,14 +718,7 @@ const OwnOrders = () => {
                                                     <IoCopy className="me-1" />
                                                     Копировать
                                                 </button>
-                                                <a
-                                                    href={`tel:${selectedOrder.phone}`}
-                                                    className="btn btn-success btn-sm"
-                                                    disabled={!selectedOrder.phone}
-                                                >
-                                                    <IoCall className="me-1" />
-                                                    Позвонить
-                                                </a>
+
                                             </div>
                                         </div>
                                     </div>

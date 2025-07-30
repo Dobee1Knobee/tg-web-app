@@ -56,25 +56,46 @@ const SearchOrder = () => {
     };
 
     // ✅ форматируем номер телефона - простая система
-    const formatPhoneNumber = (digits) => {
-        if (!digits) return "";
-        return `+1${digits}`;
-    };
+    const formatPhoneNumber = (value) => {
+        // Удаляем всё, кроме цифр
+        const digits = value.replace(/\D/g, '');
 
+        // Убираем ведущую 1, если ввели вручную
+        const cleaned = digits.startsWith('1') ? digits.slice(1) : digits;
+
+        let formatted = '+1 ';
+        for (let i = 0; i < cleaned.length; i++) {
+            if (i === 0) formatted += '(';
+            if (i === 3) formatted += ') ';
+            if (i === 6) formatted += '-';
+            formatted += cleaned[i];
+        }
+
+        return formatted;
+    };
+    //
     // ✅ обработчик для ввода телефона - простая система
+    // const handleChangePhone = (e) => {
+    //     const input = e.target.value;
+    //
+    //     // Убираем +1 если он есть в начале, оставляем только цифры
+    //     let cleanInput = input.replace(/^\+1/, '').replace(/\D/g, '');
+    //
+    //     // Сохраняем чистые цифры
+    //     setLookingNumber(cleanInput);
+    //
+    //     // Показываем с +1
+    //     setDisplayValue(formatPhoneNumber(cleanInput));
+    // };
     const handleChangePhone = (e) => {
         const input = e.target.value;
+        const digits = input.replace(/\D/g, '');
+        // Очищенный номер без +1
+        const cleanInput = digits.startsWith('1') ? digits.slice(1) : digits;
 
-        // Убираем +1 если он есть в начале, оставляем только цифры
-        let cleanInput = input.replace(/^\+1/, '').replace(/\D/g, '');
-
-        // Сохраняем чистые цифры
         setLookingNumber(cleanInput);
-
-        // Показываем с +1
         setDisplayValue(formatPhoneNumber(cleanInput));
     };
-
     // ✅ обработчик для ввода Lead ID
     const handleChangeOrder = (e) => {
         setDisplayValue(e.target.value.trim());
@@ -405,7 +426,6 @@ const SearchOrder = () => {
                                         ? handleChangePhone
                                         : handleChangeOrder
                                 }
-                                onKeyPress={handleKeyPress}
                                 inputMode={searchMode === "phone" ? "numeric" : "text"}
                                 autoComplete={searchMode === "phone" ? "tel" : "off"}
                                 disabled={loading || leadLoading}
