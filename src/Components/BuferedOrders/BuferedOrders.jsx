@@ -31,7 +31,7 @@ const BufferOrdersPage = () => {
     const [error, setError] = useState(null);
     const [selectedOrderForTake, setSelectedOrderForTake] = useState(null);
     const [showTakeModal, setShowTakeModal] = useState(false);
-    const { takeOrder, takingOrder: hookTakingOrder, error: takeError } = useTakeOrder();
+    const { takeOrder, takingOrder: hookTakingOrder, error: takeError,sendTransferNotification } = useTakeOrder();
 
     const telegramUsername = user?.username || "devapi1";
     const userData = useUserByAt(telegramUsername); // Ищем пользователя по at
@@ -48,11 +48,11 @@ const BufferOrdersPage = () => {
 
     const getTeamDisplayName = (team) => {
         switch (team) {
-            case 'A': return 'Команда А';
-            case 'B': return 'Команда B';
-            case 'C': return 'Команда C';
-            case 'W': return 'Команда W';
-            default: return `Команда ${team}`;
+            case 'A': return 'TEAM А';
+            case 'B': return 'TEAM B';
+            case 'C': return 'TEAM C';
+            case 'W': return 'TEAM W';
+            default: return `TEAM ${team}`;
         }
     };
 
@@ -89,7 +89,8 @@ const BufferOrdersPage = () => {
 
     const handleTakeOrder = async (order) => {
         const result = await takeOrder(order.order_id, telegramUsername);
-
+        const resNot = await sendTransferNotification(order.order_id, telegramUsername);
+        console.log(resNot)
         if (result.success) {
             // Убираем заказ из списка после успешного взятия
             setOrders(prev => prev.filter(o => o.order_id !== order.order_id));
@@ -119,9 +120,9 @@ const BufferOrdersPage = () => {
         const diffHours = Math.floor(diffMins / 60);
 
         if (diffMins < 60) {
-            return `${diffMins} мин назад`;
+            return `${diffMins} min ago`;
         } else if (diffHours < 24) {
-            return `${diffHours} ч назад`;
+            return `${diffHours} h ago`;
         } else {
             return date.toLocaleDateString('ru-RU');
         }
@@ -186,7 +187,7 @@ const BufferOrdersPage = () => {
                         <div className="spinner-border text-primary mb-3" role="status">
                             <span className="visually-hidden">Loading...</span>
                         </div>
-                        <p className="text-muted">Загружаем буфер заказов...</p>
+                        <p className="text-muted">Loading bufer of orders...</p>
                     </div>
                 </div>
             </div>
@@ -217,7 +218,7 @@ const BufferOrdersPage = () => {
                     </div>
                 </div>
                 <div className="alert alert-danger mt-4" role="alert">
-                    <h4 className="alert-heading">❌ Ошибка загрузки</h4>
+                    <h4 className="alert-heading">❌ Error loading</h4>
                     <p className="mb-3">{error}</p>
                     <hr />
                     <button
@@ -225,7 +226,7 @@ const BufferOrdersPage = () => {
                         onClick={handleRefresh}
                     >
                         <IoRefresh className="me-2" />
-                        Попробовать снова
+                       Try again
                     </button>
                 </div>
             </div>
@@ -259,7 +260,7 @@ const BufferOrdersPage = () => {
                 <div className="d-flex justify-content-between align-items-center mb-4">
                     <h2 className="mb-0">
                         <IoTrophy className="me-2 text-warning" />
-                        Буфер заказов - {getTeamDisplayName(userTeam)}
+                        Buffer of orders - {getTeamDisplayName(userTeam)}
                     </h2>
                     <button
                         className="btn btn-outline-primary btn-sm"
@@ -267,7 +268,7 @@ const BufferOrdersPage = () => {
                         disabled={loading}
                     >
                         <IoRefresh className="me-1" />
-                        Обновить
+                        Refresh
                     </button>
                 </div>
 
@@ -278,7 +279,7 @@ const BufferOrdersPage = () => {
                             <div className="card-body">
                                 <h5 className="card-title text-primary">
                                     <IoCard className="me-2" />
-                                    Всего в буфере
+                                    Total in buffer
                                 </h5>
                                 <h3 className="text-primary mb-0">{orders.length}</h3>
                             </div>
@@ -289,7 +290,7 @@ const BufferOrdersPage = () => {
                             <div className="card-body">
                                 <h5 className="card-title text-info">
                                     <IoTime className="me-2" />
-                                    Ожидают
+                                    Waiting
                                 </h5>
                                 <h3 className="text-info mb-0">{orders.length}</h3>
                             </div>
@@ -300,7 +301,7 @@ const BufferOrdersPage = () => {
                             <div className="card-body">
                                 <h5 className="card-title text-success">
                                     <IoDownload className="me-2" />
-                                    Доступны для взятия
+                                    Available for claim
                                 </h5>
                                 <h3 className="text-success mb-0">{orders.length}</h3>
                             </div>
@@ -319,7 +320,7 @@ const BufferOrdersPage = () => {
                                             <strong>ID: {order.order_id || 'N/A'}</strong>
                                         </div>
                                         <span className="badge bg-warning text-dark">
-                                            В буфере
+                                            In buffer
                                         </span>
                                     </div>
                                     <div className="card-body">
@@ -328,7 +329,7 @@ const BufferOrdersPage = () => {
                                             <div className="d-flex align-items-center justify-content-between">
                                                 <small className="text-muted">
                                                     <IoPerson className="me-1" />
-                                                    Передал: {order.transferred_from?.user_name || 'Неизвестно'} из команды {order.transferred_from?.team}
+                                                    Transfered from: {order.transferred_from?.user_name || 'Неизвестно'} from team  {order.transferred_from?.team}
                                                 </small>
                                                 <small className="text-muted">
                                                     <IoTimeOutline className="me-1" />
@@ -339,7 +340,7 @@ const BufferOrdersPage = () => {
 
                                         <h5 className="card-title">
                                             <IoPerson className="me-2 text-primary" />
-                                            {order.name || order.leadName || 'Не указано'}
+                                            {order.name || order.leadName || 'Not specified '}
                                         </h5>
 
                                         <div className="mb-2">
@@ -352,7 +353,7 @@ const BufferOrdersPage = () => {
                                         <div className="mb-2">
                                             <small className="text-muted">
                                                 <IoLocation className="me-1" />
-                                                {order.address || order.city || 'Адрес не указан'}
+                                                {order.address || order.city || 'Address not specified'}
                                             </small>
                                         </div>
 
@@ -366,7 +367,7 @@ const BufferOrdersPage = () => {
                                         {order.master && (
                                             <div className="mb-2">
                                                 <small className="text-muted">
-                                                    👷‍♂️ Мастер: {order.master}
+                                                    👷‍♂️ Master: {order.master}
                                                 </small>
                                             </div>
                                         )}
@@ -380,7 +381,7 @@ const BufferOrdersPage = () => {
                                                         <div key={idx} className="d-flex justify-content-between mb-2 p-2 border rounded">
                                                             <div className="flex-grow-1">
                                                                 <div className="fw-bold">{service.label || service}</div>
-                                                                <small className="text-muted">Количество: {service.count || 1}</small>
+                                                                <small className="text-muted">Count: {service.count || 1}</small>
                                                             </div>
                                                             <div className="text-end">
                                                                 <div className="fw-bold text-primary">
@@ -391,7 +392,7 @@ const BufferOrdersPage = () => {
                                                     ))}
                                                     {order.services.length > 2 && (
                                                         <small className="text-muted">
-                                                            ...и еще {order.services.length - 2} услуг
+                                                            ...and more {order.services.length - 2} services
                                                         </small>
                                                     )}
                                                 </div>
@@ -403,7 +404,7 @@ const BufferOrdersPage = () => {
                                             <div className="mb-3">
                                                 <div className="card bg-info-subtle">
                                                     <div className="card-body p-2">
-                                                        <small className="fw-bold text-info">Заметка при передаче:</small>
+                                                        <small className="fw-bold text-info">Note of transfer:</small>
                                                         <div className="small">{order.transfer_note}</div>
                                                     </div>
                                                 </div>
@@ -428,7 +429,7 @@ const BufferOrdersPage = () => {
                                                 ) : (
                                                     <>
                                                         <IoDownload className="me-1" />
-                                                        Взять
+                                                        Claim
                                                     </>
                                                 )}
                                             </button>

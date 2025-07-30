@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import { useMyOrders } from "../../hooks/useMyOrders";
+import { useSearchByLeadId } from "../../hooks/useSearchByLeadId"; // ✅ Используем готовый хук
 import { useTelegram } from "../../hooks/useTelegram";
 import { useTransferOrder } from "../../hooks/useTransferOrder";
-import { useTakeBackTransferred } from "../../hooks/useTakeBackTransferred"; // Новый импорт
+import { useTakeBackTransferred } from "../../hooks/useTakeBackTransferred";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from '../Header/Header';
 import {
@@ -24,13 +25,92 @@ import {
     IoCopy,
     IoIdCard,
     IoArrowForward,
-    IoArrowUndo // Новая иконка для "забрать обратно"
+    IoArrowUndo,
+    IoSearch,
+    IoCloseCircle
 } from 'react-icons/io5';
+
+// Компонент пагинации
+const Pagination = ({ currentPage, totalPages, onPageChange, isLoading }) => {
+    if (totalPages <= 1) return null;
+
+    const getVisiblePages = () => {
+        const delta = 2;
+        const range = [];
+
+        for (let i = Math.max(2, currentPage - delta);
+             i <= Math.min(totalPages - 1, currentPage + delta);
+             i++) {
+            range.push(i);
+        }
+
+        if (currentPage - delta > 2) {
+            range.unshift('...');
+        }
+        if (currentPage + delta < totalPages - 1) {
+            range.push('...');
+        }
+
+        range.unshift(1);
+        if (totalPages > 1) {
+            range.push(totalPages);
+        }
+
+        return range;
+    };
+
+    return (
+        <nav className="d-flex justify-content-center mt-4">
+            <ul className="pagination">
+                <li className={`page-item ${currentPage === 1 ? 'disabled' : ''}`}>
+                    <button
+                        className="page-link"
+                        onClick={() => onPageChange(currentPage - 1)}
+                        disabled={currentPage === 1 || isLoading}
+                    >
+                        <IoArrowBack className="me-1" />
+                        Prev
+                    </button>
+                </li>
+
+                {getVisiblePages().map((page, index) => (
+                    <li
+                        key={index}
+                        className={`page-item ${page === currentPage ? 'active' : ''} ${page === '...' ? 'disabled' : ''}`}
+                    >
+                        {page === '...' ? (
+                            <span className="page-link">...</span>
+                        ) : (
+                            <button
+                                className="page-link"
+                                onClick={() => onPageChange(page)}
+                                disabled={isLoading}
+                            >
+                                {page}
+                            </button>
+                        )}
+                    </li>
+                ))}
+
+                <li className={`page-item ${currentPage === totalPages ? 'disabled' : ''}`}>
+                    <button
+                        className="page-link"
+                        onClick={() => onPageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages || isLoading}
+                    >
+                        Next
+                        <IoArrowForward className="ms-1" />
+                    </button>
+                </li>
+            </ul>
+        </nav>
+    );
+};
 
 const OwnOrders = () => {
     const { isLoading, orders, error, myOrders, refetchOrders } = useMyOrders();
     const { transferOrder, error: transferError, giveOrder } = useTransferOrder();
-    const { takeBackOrder, takingBackOrder, error: takeBackError } = useTakeBackTransferred(); // Новый хук
+    const { takeBackOrder, takingBackOrder, error: takeBackError } = useTakeBackTransferred();
     const { user } = useTelegram();
     const navigate = useNavigate();
     const telegramUsername = user?.username || "devapi1";
@@ -44,6 +124,23 @@ const OwnOrders = () => {
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [selectedOrderForTransfer, setSelectedOrderForTransfer] = useState(null);
     const [selectedTeam, setSelectedTeam] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalOrders, setTotalOrders] = useState(0);
+
+    // ✅ Состояния для поиска
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeSearchQuery, setActiveSearchQuery] = useState(''); // Активный поиск
+
+    // ✅ Используем готовый хук для поиска
+    const { data: searchResult, loading: searchLoading, error: searchError, isOwner } = useSearchByLeadId(
+        activeSearchQuery, // Ищем только при активном запросе
+        telegramUsername
+    );
+
+    // Определяем режим отображения
+    const isSearchMode = activeSearchQuery.trim().length > 0;
+    const hasSearchResult = searchResult && !searchError;
 
     // Список команд
     const teams = [
@@ -54,7 +151,6 @@ const OwnOrders = () => {
 
     const getBufferStatus = (order) => {
         if (order.transfer_status === 'in_buffer') {
-            // Проверяем, является ли текущий пользователь тем, кто передавал заказ
             const canTakeBack = order.transferred_from?.user_at === telegramUsername;
             return {
                 isInBuffer: true,
@@ -77,15 +173,86 @@ const OwnOrders = () => {
     };
 
     useEffect(() => {
-        console.log(telegramUsername);
-        myOrders(telegramUsername);
-    }, [telegramUsername]);
+        // Загружаем обычные заказы только если не в режиме поиска
+        if (!isSearchMode) {
+            const loadOrders = async () => {
+                try {
+                    console.log(`📄 Загружаем заказы для ${telegramUsername}, страница ${currentPage}`);
+
+                    const data = await myOrders(telegramUsername, currentPage, 10);
+
+                    if (data?.pagination) {
+                        setTotalPages(data.pagination.totalPages);
+                        setTotalOrders(data.pagination.totalOrders);
+                        console.log(`📊 Пагинация: страница ${data.pagination.currentPage} из ${data.pagination.totalPages}, всего заказов: ${data.pagination.totalOrders}`);
+                    }
+                } catch (error) {
+                    console.error('❌ Ошибка загрузки заказов:', error);
+                }
+            };
+
+            loadOrders();
+        }
+    }, [telegramUsername, currentPage, isSearchMode]);
 
     const handleRefresh = () => {
-        myOrders(telegramUsername);
+        if (isSearchMode) {
+            console.log(`🔄 Обновляем поиск по: ${activeSearchQuery}`);
+            // Поиск обновится автоматически через хук
+        } else {
+            console.log(`🔄 Обновляем заказы на странице ${currentPage}`);
+            myOrders(telegramUsername, currentPage, 10);
+        }
     };
 
-    // Новая функция для забирания заказа обратно
+    const handlePageChange = (newPage) => {
+        if (newPage !== currentPage && newPage >= 1 && newPage <= totalPages) {
+            console.log(`📄 Переходим со страницы ${currentPage} на страницу ${newPage}`);
+            setCurrentPage(newPage);
+        }
+    };
+
+    // ✅ Обработчики поиска
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
+    };
+
+    const handleSearchClear = () => {
+        setSearchQuery('');
+        setActiveSearchQuery('');
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
+    };
+
+    const handleSearchSubmit = (e) => {
+        e.preventDefault();
+        const query = searchQuery.trim();
+        if (query) {
+            console.log(`🔍 Запускаем поиск по Lead ID: ${query}`);
+            setActiveSearchQuery(query);
+            if (currentPage !== 1) {
+                setCurrentPage(1);
+            }
+        }
+    };
+
+    // При изменении фильтра сбрасываем на первую страницу
+    const handleFilterChange = (newFilter) => {
+        setFilter(newFilter);
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
+    };
+
+    // При изменении сортировки сбрасываем на первую страницу
+    const handleSortChange = (newSort) => {
+        setSortBy(newSort);
+        if (currentPage !== 1) {
+            setCurrentPage(1);
+        }
+    };
+
     const handleTakeBack = async (order) => {
         try {
             console.log(`🔙 Забираем обратно заказ ${order.order_id}`);
@@ -95,11 +262,14 @@ const OwnOrders = () => {
             if (result.success) {
                 console.log('✅ Заказ успешно забран обратно:', result.message);
 
-                // Обновляем список заказов
-                myOrders(telegramUsername);
-
-                // Можно показать уведомление об успехе
-                // toast.success(result.message) // если используете toast
+                if (isSearchMode) {
+                    // Обновляем поиск
+                    setActiveSearchQuery(activeSearchQuery + ' '); // Хак для обновления
+                    setTimeout(() => setActiveSearchQuery(activeSearchQuery), 100);
+                } else {
+                    // Обновляем обычные заказы
+                    myOrders(telegramUsername, currentPage, 10);
+                }
             } else {
                 console.error('❌ Ошибка при забирании заказа обратно:', result.error);
             }
@@ -155,36 +325,43 @@ const OwnOrders = () => {
     const formatPhone = (phone) => {
         if (!phone) return "";
         const cleaned = phone.replace(/\D/g, '');
-
-            return `+1 (${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6,10)}`;
-
+        return `+1 (${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6,10)}`;
     };
 
-    const getFilteredOrders = () => {
-        if (!orders?.orders) return [];
+    // ✅ Функция получения заказов для отображения
+    const getDisplayedOrders = () => {
+        if (isSearchMode) {
+            // В режиме поиска показываем результат поиска
+            return hasSearchResult ? [searchResult] : [];
+        } else {
+            // В обычном режиме применяем фильтры и сортировку
+            if (!orders?.orders) return [];
 
-        let filtered = [...orders.orders];
+            let filtered = [...orders.orders];
 
-        if (filter !== 'all') {
-            filtered = filtered.filter(order => order.text_status === filter);
-        }
-
-        filtered.sort((a, b) => {
-            switch (sortBy) {
-                case 'newest':
-                    return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
-                case 'oldest':
-                    return new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date);
-                case 'amount-high':
-                    return (b.total || 0) - (a.total || 0);
-                case 'amount-low':
-                    return (a.total || 0) - (b.total || 0);
-                default:
-                    return 0;
+            // Применяем фильтр по статусу
+            if (filter !== 'all') {
+                filtered = filtered.filter(order => order.text_status === filter);
             }
-        });
 
-        return filtered;
+            // Применяем сортировку
+            filtered.sort((a, b) => {
+                switch (sortBy) {
+                    case 'newest':
+                        return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
+                    case 'oldest':
+                        return new Date(a.createdAt || a.date) - new Date(b.createdAt || b.date);
+                    case 'amount-high':
+                        return (b.total || 0) - (a.total || 0);
+                    case 'amount-low':
+                        return (a.total || 0) - (b.total || 0);
+                    default:
+                        return 0;
+                }
+            });
+
+            return filtered;
+        }
     };
 
     const copyToClipboard = async (text) => {
@@ -230,7 +407,6 @@ const OwnOrders = () => {
         if (!selectedTeam || !selectedOrderForTransfer) return;
 
         try {
-            // Формируем объект пользователя для API
             const fromUserData = {
                 username: user?.username || telegramUsername,
                 name: user?.first_name || user?.username || telegramUsername,
@@ -238,24 +414,25 @@ const OwnOrders = () => {
             };
 
             const result = await transferOrder(
-                selectedOrderForTransfer.order_id,  // order_id
-                selectedTeam,                       // toTeam
-                fromUserData,                       // fromUser как объект
-                note                               // note
+                selectedOrderForTransfer.order_id,
+                selectedTeam,
+                fromUserData,
+                note
             );
 
             if (result.success) {
-                // Успешная передача
                 console.log('Заказ успешно передан:', result.message);
-
-                // Закрываем модалку
                 closeTransferModal();
 
-                // Обновляем список заказов
-                myOrders(telegramUsername);
-
+                if (isSearchMode) {
+                    // Обновляем поиск
+                    setActiveSearchQuery(activeSearchQuery + ' ');
+                    setTimeout(() => setActiveSearchQuery(activeSearchQuery), 100);
+                } else {
+                    // Обновляем обычные заказы
+                    myOrders(telegramUsername, currentPage, 10);
+                }
             } else {
-                // Ошибка передачи
                 console.error('Ошибка передачи заказа:', result.error);
             }
         } catch (error) {
@@ -269,7 +446,11 @@ const OwnOrders = () => {
         return [...new Set(statuses)];
     };
 
-    if (isLoading) {
+    // Определяем состояние загрузки
+    const currentLoading = isSearchMode ? searchLoading : isLoading;
+    const currentError = isSearchMode ? searchError : error;
+
+    if (currentLoading) {
         return (
             <div className="container py-4">
                 <div className="position-relative">
@@ -297,14 +478,16 @@ const OwnOrders = () => {
                         <div className="spinner-border text-primary mb-3" role="status">
                             <span className="visually-hidden">Loading...</span>
                         </div>
-                        <p className="text-muted">Загружаем ваши заказы...</p>
+                        <p className="text-muted">
+                            {isSearchMode ? `Ищем заказ ${activeSearchQuery}...` : 'Loading your orders...'}
+                        </p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    if (error) {
+    if (currentError) {
         return (
             <div className="container py-4">
                 <div className="position-relative">
@@ -328,8 +511,8 @@ const OwnOrders = () => {
                     </div>
                 </div>
                 <div className="alert alert-danger mt-4" role="alert">
-                    <h4 className="alert-heading">❌ Ошибка загрузки</h4>
-                    <p className="mb-3">{error}</p>
+                    <h4 className="alert-heading">❌ Ошибка</h4>
+                    <p className="mb-3">{currentError}</p>
                     <hr />
                     <button
                         className="btn btn-outline-danger"
@@ -343,7 +526,7 @@ const OwnOrders = () => {
         );
     }
 
-    const filteredOrders = getFilteredOrders();
+    const displayedOrders = getDisplayedOrders();
     const uniqueStatuses = getUniqueStatuses();
 
     return (
@@ -375,18 +558,18 @@ const OwnOrders = () => {
                     <button
                         className="btn btn-outline-primary btn-sm"
                         onClick={handleRefresh}
-                        disabled={isLoading}
+                        disabled={currentLoading}
                     >
                         <IoRefresh className="me-1" />
                         Reload
                     </button>
                 </div>
 
-                {/* Показ ошибки для takeBack */}
+                {/* ✅ Поиск по Lead ID */}
 
 
-                {/* Статистика */}
-                {orders && (
+                {/* Статистика - показываем только в обычном режиме */}
+                {!isSearchMode && orders && (
                     <div className="row mb-4">
                         <div className="col-md-4">
                             <div className="card text-center h-100">
@@ -395,7 +578,7 @@ const OwnOrders = () => {
                                         <IoCard className="me-2" />
                                         Total orders
                                     </h5>
-                                    <h3 className="text-primary mb-0">{orders.count || 0}</h3>
+                                    <h3 className="text-primary mb-0">{totalOrders || 0}</h3>
                                 </div>
                             </div>
                         </div>
@@ -428,245 +611,335 @@ const OwnOrders = () => {
                     </div>
                 )}
 
-                {/* Фильтры и сортировка */}
-                <div className="row mb-4">
-                    <div className="col-md-6">
-                        <label className="form-label">Фильтр по статусу:</label>
-                        <select
-                            className="form-select"
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                        >
-                            <option value="all">All orders</option>
-                            {uniqueStatuses.map(status => (
-                                <option key={status} value={status}>{status}</option>
-                            ))}
-                        </select>
+                {/* Информация о результатах */}
+                {(orders?.pagination || isSearchMode) && (
+                    <div className="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                        {isSearchMode ? (
+                            <>
+                                <small className="text-muted">
+                                    🔍 Результат поиска по Lead ID
+                                </small>
+                                <small className="text-muted">
+                                    {hasSearchResult ? 'Найден 1 заказ' : 'Заказ не найден'}
+                                </small>
+                            </>
+                        ) : (
+                            <>
+                                <small className="text-muted">
+                                    📄 Page {currentPage} of {totalPages}
+                                </small>
+                                <small className="text-muted">
+                                    📊 Showed {orders.orders?.length || 0} of {totalOrders} orders
+                                </small>
+                            </>
+                        )}
                     </div>
-                    <div className="col-md-6">
-                        <label className="form-label">Сортировка:</label>
-                        <select
-                            className="form-select"
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                        >
-                            <option value="newest">Сначала новые</option>
-                            <option value="oldest">Сначала старые</option>
-                            <option value="amount-high">По сумме (больше)</option>
-                            <option value="amount-low">По сумме (меньше)</option>
-                        </select>
+                )}
+
+                {/* Фильтры и сортировка - скрываем в режиме поиска */}
+                {!isSearchMode && (
+                    <div className="row mb-4">
+                        {/* Поиск */}
+                        <div className="col-md-6">
+                            <label className="form-label">Search by Lead ID:</label>
+                            <form onSubmit={handleSearchSubmit}>
+                                <div className="input-group">
+                    <span className="input-group-text">
+                        <IoSearch />
+                    </span>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="CE0727114"
+                                        value={searchQuery}
+                                        onChange={handleSearchChange}
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline-secondary"
+                                            onClick={handleSearchClear}
+                                            title="Очистить"
+                                        >
+                                            <IoCloseCircle />
+                                        </button>
+                                    )}
+                                    <button
+                                        type="submit"
+                                        className="btn btn-primary"
+                                        disabled={!searchQuery.trim() || searchLoading}
+                                    >
+                                        {searchLoading ? 'Searching...' : 'Search'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        {/* Сортировка */}
+                        <div className="col-md-6">
+                            <label className="form-label">Сортировка:</label>
+                            <select
+                                className="form-select"
+                                value={sortBy}
+                                onChange={(e) => handleSortChange(e.target.value)}
+                            >
+                                <option value="newest">Сначала новые</option>
+                                <option value="oldest">Сначала старые</option>
+                                <option value="amount-high">По сумме (больше)</option>
+                                <option value="amount-low">По сумме (меньше)</option>
+                            </select>
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {/* Индикатор активного поиска - отдельным блоком */}
+                {isSearchMode && (
+                    <div className="alert alert-info py-2 mb-4">
+                        <small className="mb-0">
+                            <IoSearch className="me-1" />
+                            Search by Lead ID: "<strong>{activeSearchQuery}</strong>"
+                            <button
+                                type="button"
+                                className="btn btn-link btn-sm p-0 ms-2 text-decoration-none"
+                                onClick={handleSearchClear}
+                            >
+                                (Return)
+                            </button>
+                        </small>
+                    </div>
+                )}
 
                 {/* Список заказов */}
-                {filteredOrders.length > 0 ? (
-                    <div className="row">
-                        {filteredOrders.map((order, index) => (
-                            <div key={order._id || index} className="col-md-6 mb-4">
-                                <div className="card h-100 shadow-sm">
-                                    <div className="card-header d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>ID:{order.leadId || order.order_id || 'N/A'}</strong>
-                                        </div>
-                                        <div className="d-flex gap-2 flex-wrap">
-                                            {/* Основной статус */}
-                                            <span
-                                                className="badge rounded-pill px-3"
-                                                style={{
-                                                    backgroundColor: getStatusColor(order.text_status),
-                                                    color: '#000',
-                                                    fontSize: '0.8em'
-                                                }}
-                                            >
-                                                {order.text_status || 'Без статуса'}
-                                            </span>
-                                            {/*{order.text_status === "Оформлен" && (*/}
-                                            {/*    <button className={"btn badge btn-danger px-3"}>Cancel</button>*/}
-                                            {/*)}*/}
-
-
-                                            {/* Статус буфера */}
-                                            {(() => {
-                                                const bufferStatus = getBufferStatus(order);
-                                                return bufferStatus.isInBuffer && (
-                                                    <span className="badge bg-warning text-dark px-2" style={{ fontSize: '0.75em' }}>
-                                                        📤 В буфере {bufferStatus.teamName}
-                                                        {bufferStatus.canTakeBack && (
-                                                            <span className="ms-1">• Можно забрать</span>
-                                                        )}
+                {displayedOrders.length > 0 ? (
+                    <>
+                        <div className="row">
+                            {displayedOrders.map((order, index) => (
+                                <div key={order._id || index} className="col-md-6 mb-4">
+                                    <div className="card h-100 shadow-sm">
+                                        <div className="card-header d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>ID:{order.leadId || order.order_id || 'N/A'}</strong>
+                                                {/* ✅ Выделяем найденный заказ */}
+                                                {isSearchMode && (
+                                                    <span className="badge bg-success text-white ms-2">
+                                                        <IoSearch className="me-1" />
+                                                        Найдено
                                                     </span>
-                                                );
-                                            })()}
+                                                )}
+                                            </div>
+                                            <div className="d-flex gap-2 flex-wrap">
+                                                <span
+                                                    className="badge rounded-pill px-3"
+                                                    style={{
+                                                        backgroundColor: getStatusColor(order.text_status),
+                                                        color: '#000',
+                                                        fontSize: '0.8em'
+                                                    }}
+                                                >
+                                                    {order.text_status || 'Без статуса'}
+                                                </span>
+
+                                                {(() => {
+                                                    const bufferStatus = getBufferStatus(order);
+                                                    return bufferStatus.isInBuffer && (
+                                                        <span className="badge bg-warning text-dark px-2" style={{ fontSize: '0.75em' }}>
+                                                            📤 В буфере {bufferStatus.teamName}
+                                                            {bufferStatus.canTakeBack && (
+                                                                <span className="ms-1">• Можно забрать</span>
+                                                            )}
+                                                        </span>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
-                                    </div>
-                                    <div className="card-body">
-                                        <h5 className="card-title">
-                                            <IoPerson className="me-2 text-primary" />
-                                            {order.leadName || 'Не указано'}
-                                        </h5>
+                                        <div className="card-body">
+                                            <h5 className="card-title">
+                                                <IoPerson className="me-2 text-primary" />
+                                                {order.leadName || 'Не указано'}
+                                            </h5>
 
-                                        <div className="mb-2">
-                                            <small className="text-muted">
-                                                <IoIdCard className="me-1" />
-                                                Client ID: #c{order.client_id}
-                                            </small>
-                                        </div>
-
-                                        <div className="mb-2">
-                                            <small className="text-muted">
-                                                <IoLocation className="me-1" />
-                                                {order.address || 'Address not specified'}
-                                                {order.zip_code
-                                                    ? <span style={{ marginLeft: "8px" }}>{order.zip_code}</span>
-                                                    : <span style={{ marginLeft: "8px" }}>ZIP code not specified</span>}
-                                            </small>
-                                        </div>
-
-
-                                        <div className="mb-2">
-                                            <small className="text-muted">
-                                                <IoCalendar className="me-1" />
-                                                {formatDate(order.date)}
-                                            </small>
-                                        </div>
-
-                                        {order.master && (
                                             <div className="mb-2">
                                                 <small className="text-muted">
-                                                    👷‍♂️ Мастер: {order.master}
+                                                    <IoIdCard className="me-1" />
+                                                    Client ID: #c{order.client_id}
                                                 </small>
                                             </div>
-                                        )}
 
-                                        {order.comment && (
                                             <div className="mb-2">
-                                                <small className="text-muted fst-italic">
-                                                    💬 {order.comment}
+                                                <small className="text-muted">
+                                                    <IoLocation className="me-1" />
+                                                    {order.address || 'Address not specified'}
+                                                    {order.zip_code
+                                                        ? <span style={{ marginLeft: "8px" }}>{order.zip_code}</span>
+                                                        : <span style={{ marginLeft: "8px" }}>ZIP code not specified</span>}
                                                 </small>
                                             </div>
-                                        )}
 
-                                        {/* Услуги */}
-                                        {order.services && order.services.length > 0 && (
-                                            <div className="mb-3">
-                                                <h6 className="text-muted mb-2">Услуги:</h6>
-                                                <div className="small">
-                                                    {order.services.slice(0, 3).map((service, idx) => (
-                                                        <div key={idx} className="d-flex justify-content-between mb-3 p-2 border rounded">
-                                                            {/* Основная услуга */}
-                                                            <div className="flex-grow-1 me-3">
-                                                                <div className="fw-bold">{service.label}</div>
-                                                                <small className="text-muted">Количество: {service.count || 1}</small>
-                                                                <div className="fw-bold text-primary">${service.price * service.count} </div>
-                                                            </div>
-
-                                                            {/* Дополнительные услуги */}
-                                                            <div className="text-end">
-                                                                {service.addons && service.addons.map((addon, addonIdx) => (
-                                                                    <div key={addonIdx} className="mb-1">
-                                                                        <small className="text-muted d-block">{addon.label}</small>
-                                                                        <small className="text-muted d-block">Количество: {addon.count}</small>
-
-                                                                        <small className="text-success">+${addon.price * addon.count}</small>
-                                                                    </div>
-                                                                ))}
-
-                                                                {service.mountType && (
-                                                                    <div className="mb-1">
-                                                                        <small className="text-muted d-block">Mount: {service.mountType}</small>
-                                                                        <small className="text-muted d-block">Количество: {service.mountCount}</small>
-                                                                        <small className="text-info">+${service.mountPrice * service.mountCount}</small>
-                                                                    </div>
-                                                                )}
-
-                                                                {service.addonsPrice > 0 && (
-                                                                    <div className="fw-bold text-success mt-2">
-                                                                        Доп: +${service.addonsPrice}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                    {order.services.length > 3 && (
-                                                        <small className="text-muted">
-                                                            ...и еще {order.services.length - 3} услуг
-                                                        </small>
-                                                    )}
-                                                </div>
+                                            <div className="mb-2">
+                                                <small className="text-muted">
+                                                    <IoCalendar className="me-1" />
+                                                    {formatDate(order.date)}
+                                                </small>
                                             </div>
-                                        )}
-                                    </div>
-                                    <div className="card-footer d-flex justify-content-between align-items-center">
-                                        <div className="fw-bold text-success fs-5">
-                                            💰 {order.total || 0}$
-                                        </div>
-                                        <div className="btn-group" role="group">
-                                            <button
-                                                className="btn btn-outline-primary btn-sm"
-                                                onClick={() => openContactModal(order)}
-                                                title="Просмотреть контакты"
-                                            >
-                                                <IoEye />
-                                            </button>
-                                            <button
-                                                className="btn btn-outline-warning btn-sm"
-                                                onClick={() => navigate(`/change/${order.order_id}`)}
-                                                title="Редактировать"
-                                            >
-                                                <IoCreate />
-                                            </button>
-                                            {order.text_status === 'Другой регион' && (
-                                                <button
-                                                    className="btn btn-outline-info btn-sm"
-                                                    onClick={() => openTransferModal(order)}
-                                                    title="Передать в другую команду"
-                                                >
-                                                    <IoArrowForward />
-                                                </button>
+
+                                            {order.master && (
+                                                <div className="mb-2">
+                                                    <small className="text-muted">
+                                                        👷‍♂️ Мастер: {order.master}
+                                                    </small>
+                                                </div>
                                             )}
-                                            {/* НОВАЯ КНОПКА "Забрать обратно" */}
-                                            {(() => {
-                                                const bufferStatus = getBufferStatus(order);
-                                                return bufferStatus.isInBuffer && bufferStatus.canTakeBack && (
-                                                    <button
-                                                        className="btn btn-outline-success btn-sm"
-                                                        onClick={() => handleTakeBack(order)}
-                                                        title="Забрать заказ обратно"
-                                                        disabled={takingBackOrder === order.order_id}
-                                                    >
-                                                        {takingBackOrder === order.order_id ? (
-                                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                                                        ) : (
-                                                            <IoArrowUndo />
+
+                                            {order.comment && (
+                                                <div className="mb-2">
+                                                    <small className="text-muted fst-italic">
+                                                        💬 {order.comment}
+                                                    </small>
+                                                </div>
+                                            )}
+
+                                            {/* Услуги */}
+                                            {order.services && order.services.length > 0 && (
+                                                <div className="mb-3">
+                                                    <h6 className="text-muted mb-2">Услуги:</h6>
+                                                    <div className="small">
+                                                        {order.services.slice(0, 3).map((service, idx) => (
+                                                            <div key={idx} className="d-flex justify-content-between mb-3 p-2 border rounded">
+                                                                <div className="flex-grow-1 me-3">
+                                                                    <div className="fw-bold">{service.label}</div>
+                                                                    <small className="text-muted">Count: {service.count || 1}</small>
+                                                                    <div className="fw-bold text-primary">${service.price * service.count} </div>
+                                                                </div>
+
+                                                                <div className="text-end">
+                                                                    {service.addons && service.addons.map((addon, addonIdx) => (
+                                                                        <div key={addonIdx} className="mb-1">
+                                                                            <small className="text-muted d-block">{addon.label}</small>
+                                                                            <small className="text-muted d-block">Count: {addon.count}</small>
+                                                                            <small className="text-success">+${addon.price * addon.count}</small>
+                                                                        </div>
+                                                                    ))}
+
+                                                                    {service.mountType && (
+                                                                        <div className="mb-1">
+                                                                            <small className="text-muted d-block">Mount: {service.mountType}</small>
+                                                                            <small className="text-muted d-block">Count: {service.mountCount}</small>
+                                                                            <small className="text-info">+${service.mountPrice * service.mountCount}</small>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {service.addonsPrice > 0 && (
+                                                                        <div className="fw-bold text-success mt-2">
+                                                                            Add: +${service.addonsPrice}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {order.services.length > 3 && (
+                                                            <small className="text-muted">
+                                                                ...and more {order.services.length - 3} services
+                                                            </small>
                                                         )}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="card-footer d-flex justify-content-between align-items-center">
+                                            <div className="fw-bold text-success fs-5">
+                                                💰 {order.total || 0}$
+                                            </div>
+                                            <div className="btn-group" role="group">
+                                                <button
+                                                    className="btn btn-outline-primary btn-sm"
+                                                    onClick={() => openContactModal(order)}
+                                                    title="Просмотреть контакты"
+                                                >
+                                                    <IoEye />
+                                                </button>
+                                                <button
+                                                    className="btn btn-outline-warning btn-sm"
+                                                    onClick={() => navigate(`/change/${order.order_id}`)}
+                                                    title="Редактировать"
+                                                >
+                                                    <IoCreate />
+                                                </button>
+                                                {order.text_status === 'Другой регион' && (
+                                                    <button
+                                                        className="btn btn-outline-info btn-sm"
+                                                        onClick={() => openTransferModal(order)}
+                                                        title="Передать в другую команду"
+                                                    >
+                                                        <IoArrowForward />
                                                     </button>
-                                                );
-                                            })()}
+                                                )}
+                                                {(() => {
+                                                    const bufferStatus = getBufferStatus(order);
+                                                    return bufferStatus.isInBuffer && bufferStatus.canTakeBack && (
+                                                        <button
+                                                            className="btn btn-outline-success btn-sm"
+                                                            onClick={() => handleTakeBack(order)}
+                                                            title="Забрать заказ обратно"
+                                                            disabled={takingBackOrder === order.order_id}
+                                                        >
+                                                            {takingBackOrder === order.order_id ? (
+                                                                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                                                            ) : (
+                                                                <IoArrowUndo />
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+
+                        {/* Компонент пагинации - показываем только в обычном режиме */}
+                        {!isSearchMode && (
+                            <Pagination
+                                currentPage={currentPage}
+                                totalPages={totalPages}
+                                onPageChange={handlePageChange}
+                                isLoading={isLoading}
+                            />
+                        )}
+                    </>
                 ) : (
                     <div className="text-center py-5">
                         <div className="mb-4">
                             <IoCard size={64} className="text-muted" />
                         </div>
-                        <h4 className="text-muted">Заказы не найдены</h4>
+                        <h4 className="text-muted">
+                            {isSearchMode ? 'Заказ не найден' : 'Заказы не найдены'}
+                        </h4>
                         <p className="text-muted">
-                            {filter === 'all'
-                                ? 'У вас пока нет заказов'
-                                : `Нет заказов со статусом "${filter}"`
+                            {isSearchMode
+                                ? `Заказ с Lead ID "${activeSearchQuery}" не найден или не принадлежит вам`
+                                : filter === 'all'
+                                    ? 'У вас пока нет заказов'
+                                    : `Нет заказов со статусом "${filter}"`
                             }
                         </p>
-                        <button
-                            className="btn btn-primary"
-                            onClick={() => navigate('/form')}
-                        >
-                            <IoCreate className="me-2" />
-                            Создать первый заказ
-                        </button>
+                        {isSearchMode ? (
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleSearchClear}
+                            >
+                                <IoCloseCircle className="me-2" />
+                                Return to list of orders
+                            </button>
+                        ) : (
+                            <button
+                                className="btn btn-primary"
+                                onClick={() => navigate('/form')}
+                            >
+                                <IoCreate className="me-2" />
+                                Create first order
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -718,7 +991,6 @@ const OwnOrders = () => {
                                                     <IoCopy className="me-1" />
                                                     Копировать
                                                 </button>
-
                                             </div>
                                         </div>
                                     </div>

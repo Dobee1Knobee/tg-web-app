@@ -14,6 +14,7 @@ import {useGetClient} from "../../hooks/useGetNumbersOfClient";
 import {ToastContext} from "../../context/ToastContext";
 import {useGetCities} from "../../hooks/useGetCitiesByTeam";
 import {useCountNotOwnersView} from "../../hooks/useCountNotOwnersView";
+import {useCheckFormLink} from "../../hooks/useCheckFormExists";
 
 const workTypes = [
     { label: "Standard Mounting", value: "tv_std", price: 0 }, // зависит от часов
@@ -350,6 +351,8 @@ const Form = () => {
     const [addMaterialsCount, setAddMaterialsCount] = useState(1);
     const [city, setCity] = useState("");
     const [addonCount, setAddonCount] = useState(1);
+    const { checkFormLinkExists, checking,error:exsError } = useCheckFormLink();
+
     const [dataLead, setDataLead] = useState(() => {
         const now = new Date();
         const date = now.toISOString().split("T")[0]; // "2025-05-17"
@@ -571,37 +574,44 @@ const Form = () => {
 
 // Исправленная функция submitToGoogleSheets
     const submitToGoogleSheets = async () => {
-        try { // 🆕 ДОБАВИТЬ TRY
-            setLoadingOrderTODB(true)
+        try {
+            setLoadingOrderTODB(true);
+
+            // 🆕 ПРОВЕРЯЕМ, НЕ ПРИВЯЗАНА ЛИ УЖЕ ФОРМА
+            if (orderIdInput && orderIdInput.trim()) {
+                console.log(`🔍 Проверяем, не привязана ли уже форма ${orderIdInput}`);
+
+                const existingLink = await checkFormLinkExists(orderIdInput);
+
+                if (existingLink.exists) {
+                    showError(`❌ Форма ${orderIdInput} уже привязана к заказу менеджера @${existingLink.manager}`);
+                    setLoadingOrderTODB(false);
+                    return;
+                }
+
+                // Проверяем ошибки при проверке формы
+                if (existingLink.error) {
+                    showError(`❌ ${existingLink.error}`);
+                    setLoadingOrderTODB(false);
+                    return;
+                }
+            }
+
             const url = getSheetUrlByTeam(team);
             const manager_id = managerId ? `${managerId}` : "N/A";
             const team_id = team ? team : "N/A";
 
-            // const total = customTotal !== null
-            //     ? Number(customTotal)
-            //     : services
-            //         .map(s => (
-            //             (s.price || 0 + s.mountPrice || 0) * s.count || 0 +
-            //             (s.materialPrice || 0) +
-            //             (s.addonsPrice || 0) +
-            //             ((s.mountPrice || 0 )* s.mountCount || 0)
-            //         ))
-            //         .reduce((a, b) => a + b, 0);
-
-
             const safeDate = dataLead && !isNaN(Date.parse(dataLead)) ? dataLead : new Date().toISOString();
-            // ✅ Если дата введена – сохраняем ровно то, что введено
             const formattedDate = dataLead ? dataLead : new Date().toISOString();
 
-// ✅ Для Google Sheets – тоже сохраняем без пересчёта
             const formattedDateSheets = dataLead
-                ? dataLead.replace('T', ' ')   // превращаем 2025-07-27T15:30 → 2025-07-27 15:30
+                ? dataLead.replace('T', ' ')
                 : new Date().toISOString().slice(0, 19).replace('T', ' ');
-            // ✅ НЕ отправляем leadId - пусть сервер сгенерирует
+
             const payloadForMongo = {
                 owner: `${telegramUsername}`,
                 team: team_id,
-                zip_code : zipCode,
+                zip_code: zipCode,
                 client_id: clientId,
                 manager_id,
                 text_status: status,
@@ -613,8 +623,8 @@ const Form = () => {
                 master: selectedMaster,
                 comment: commentOrder,
                 additionalTelephone: additionalTelephones,
-                total : total,
-                services: servicesWithMountCount, // вот сюда вставляем обновлённые услуги
+                total: total,
+                services: servicesWithMountCount,
             };
 
             console.log("📦 Payload для MongoDB:", JSON.stringify(payloadForMongo, null, 2));
@@ -623,28 +633,28 @@ const Form = () => {
 
             if (!result) {
                 showError(`❌ Ошибка при сохранении в базу: ${error || 'Неизвестная ошибка,попробуйте еще раз'}`);
-                setLoadingOrderTODB(false)
+                setLoadingOrderTODB(false);
                 return;
             }
 
-            // ✅ Используем leadId из ответа сервера
             const finalLeadId = result.leadId;
 
-            // 🆕 ПРИВЯЗЫВАЕМ ФОРМУ ЕСЛИ ЕСТЬ formId
-            if (orderIdInput && orderIdInput.trim()) { // ✅ ИСПРАВЛЕНО
+            // 🆕 ПРИВЯЗЫВАЕМ ФОРМУ ЕСЛИ ЕСТЬ formId (теперь мы знаем, что она не привязана)
+            if (orderIdInput && orderIdInput.trim()) {
                 console.log(`🔗 Привязываем форму ${orderIdInput} к заказу ${result.id}`);
 
                 const linkResult = await linkFormToOrder(
-                    telegramUsername,    // at
-                    orderIdInput,        // ✅ ИСПРАВЛЕНО: form_id
-                    result.id           // order_id (MongoDB _id заказа)
+                    telegramUsername,
+                    orderIdInput,
+                    result.id
                 );
 
                 if (linkResult.success) {
-                    console.log('✅ Форма успешно привязана к заказу');
+                    console.log('✅ Form successfully linked to the order.');
                 } else {
-                    showInfo(`⚠️ Не удалось привязать форму:${linkResult.error}`)
-                    // Не падаем, просто логируем
+                    showInfo(`⚠️Failed to link the form: ${linkResult.error} connect owner ${linkResult.manager}`);
+                    setLoadingOrderTODB(false);
+                    return;
                 }
             }
 
@@ -659,13 +669,13 @@ const Form = () => {
                 phone: phoneNumberLead,
                 date: formattedDateSheets,
                 city,
-                additionalTelephone: additionalTelephones, // 🆕 ДОБАВИЛИ
+                additionalTelephone: additionalTelephones,
                 client_id: clientId,
                 master: selectedMaster,
                 comment: commentOrder,
-                total:total,
+                total: total,
                 services,
-                leadId: finalLeadId, // ✅ leadId из сервера
+                leadId: finalLeadId,
             };
 
             console.log("📦 Payload для Google Sheets:", JSON.stringify(payloadForSheets, null, 2));
@@ -679,17 +689,17 @@ const Form = () => {
                 body: JSON.stringify(payloadForSheets),
             });
 
-            // 🆕 Улучшенное сообщение с информацией о привязке формы
             const successMessage = orderIdInput && orderIdInput.trim()
                 ? `✅ The application has been saved and linked to the form. Lead ID: ${finalLeadId}`
                 : `✅ The application has been successfully saved. Lead ID: ${finalLeadId}`;
 
             showSuccess(successMessage);
-            setLoadingOrderTODB(false)
+            setLoadingOrderTODB(false);
 
-        } catch (err) { // 🆕 ДОБАВИТЬ CATCH
+        } catch (err) {
             console.error("❌ Общая ошибка в submitToGoogleSheets:", err);
             showError(`❌ Произошла ошибка: ${err.message || 'Неизвестная ошибка'}`);
+            setLoadingOrderTODB(false);
         }
     };
 
@@ -1108,6 +1118,7 @@ const Form = () => {
                                     className="btn btn-sm btn-outline-primary"
                                     onClick={() => {
                                         setCreatingNewOrChanging(true);
+                                        setShowRestrictedView(true)
                                         navigate(`/change/${order.order_id}`);
                                     }}
                                 >
@@ -1144,7 +1155,7 @@ const Form = () => {
                     </button>
                 </div>
             ))}
-            {(found || pathname.includes("/change/")) && ownerUpd === telegramUsername || showRestrictedView && (
+            {(((found || pathname.includes("/change/")) && ownerUpd === telegramUsername) || showRestrictedView) && (
                 <div className="container d-flex flex-column">
                     {/* Основной номер */}
                     <div className="mb-3">
