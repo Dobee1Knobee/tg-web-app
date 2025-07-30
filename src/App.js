@@ -11,7 +11,7 @@ import OwnOrders from "./Components/OwnOrders /OwnOrders";
 import BuferedOrders from "./Components/BuferedOrders/BuferedOrders";
 import PinCodePage from "./Components/PinCodePage/PinCodePage";
 import {ToastContext, ToastProvider} from "./context/ToastContext";
-import ToastContainer from "./Components/Toast/ToastContainer";
+import {ToastContainer} from "./Components/Toast/ToastContainer";
 import SearchOrder from "./Components/SearchAndChange/SearchOrder";
 
 function App() {

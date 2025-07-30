@@ -71,7 +71,7 @@ export const useTakeOrder = () => {
                 timestamp: new Date().toISOString()
             };
 
-            const response = await fetch("https://tvmountmaster.ngrok.pro/orderTransfer", {
+            const response = await fetch("https://tvmountmaster.ngrok.app/orderTransfer", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

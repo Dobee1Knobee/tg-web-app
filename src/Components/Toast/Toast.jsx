@@ -6,8 +6,7 @@ export default function Toast({ id, message, type = "success", duration = 5000, 
     const colors = {
         success: { bg: "#4CAF50", bar: "#81C784" },
         error: { bg: "#F44336", bar: "#E57373" },
-        info: { bg: "#f1c022", bar: "#f3c221" }
-    };
+        info: { bg: "#f1c022", bar: "#f3c221" }};
 
     useEffect(() => {
         // ❌ Удаляем тост по окончании времени

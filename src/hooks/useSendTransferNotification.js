@@ -3,7 +3,7 @@ export const useSendTransferNotification = async (req, res) => {
     try {
         const payload = req.body; // Получаем данные из запроса
 
-        const response = await fetch("https://tvmountmaster.ngrok.dev/orderTransfer", {
+        const response = await fetch("https://tvmountmaster.ngrok.app/orderTransfer", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",

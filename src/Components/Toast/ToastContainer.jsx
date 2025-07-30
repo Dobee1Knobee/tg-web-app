@@ -1,41 +1,42 @@
-import Toast from "./Toast";
+import React, { useContext } from 'react';
+import { ToastContext } from '../../context/ToastContext';
+import Toast from './Toast';
+import ScheduleToast from './ScheduleToast';
 
-const ToastContainer = ({toasts,onRemoveToast}) => {
-    console.log("📦 ToastContainer получил тосты:", toasts);
+export const ToastContainer = () => {
+    const { toasts, scheduleToasts, removeToast, removeScheduleToast } = useContext(ToastContext);
 
     return (
-        <div
-            className={"toast-container1"}
-            style={{
-                position: "fixed",
-                top: "20px",
-                right: "20px",
-                zIndex: 999999,
-                display: "flex",
-                flexDirection: "column",
-                gap: "10px",
-                maxWidth: "400px",
-                width: "auto",
-                maxHeight: "80vh",
-                overflow: "visible",
-                pointerEvents: "auto"
-            }}
-        >
+        <>
+            {/* Обычные тосты */}
+            <div style={{
+                position: 'fixed',
+                top: '20px',
+                right: '20px',
+                zIndex: 9998
+            }}>
+                {toasts.map(toast => (
+                    <Toast
+                        key={toast.id}
+                        id={toast.id}
+                        message={toast.message}
+                        type={toast.type}
+                        duration={toast.duration}
+                        onClose={removeToast}
+                    />
+                ))}
+            </div>
 
-
-            {toasts.map((toast) => (
-                <Toast
+            {/* Schedule тосты */}
+            {scheduleToasts.map(toast => (
+                <ScheduleToast
                     key={toast.id}
-                id={toast.id}
-                type={toast.type}
-                onClose={onRemoveToast}
-                message={toast.message}
-                duration={toast.duration}
-                >
-
-                </Toast>
+                    id={toast.id}
+                    data={toast.data}
+                    duration={toast.duration}
+                    onClose={removeScheduleToast}
+                />
             ))}
-        </div>
-    )
-}
-export default ToastContainer;
+        </>
+    );
+};

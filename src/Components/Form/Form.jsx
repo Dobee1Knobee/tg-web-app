@@ -96,9 +96,10 @@ const Form = () => {
     const { response: clientData, error: clientError, loading: clientLoading, getClient } = useGetClient();
     const [zipCode,setZipCode] = useState('');
     const [loadingOrderTODB,setLoadingOrderTODB] = useState(false);
-    const { toasts, removeToast, showSuccess, showError, showWarning, showInfo } = useContext(ToastContext);
+    const { toasts, removeToast, showSuccess, showError, showWarning, showInfo,showSchedule } = useContext(ToastContext);
     const [showDupAfterChange, setShowDupAfterChange] = useState(true);
     const [total,setTotal] = useState(0);
+    const [totalLead,setTotalLead] = useState(0);
     const [ownerUpd,setOwnerUpd] = useState("");
     const formatPhoneNumber = (value) => {
         // Удаляем всё, кроме цифр
@@ -301,6 +302,7 @@ const Form = () => {
                 setOwnerUpd(data.owner || "");
                 setStatus(data.text_status || "");
                 setAddressLead(data.address || "");
+                setTotalLead(data.total || "");
                 setZipCode(data.zip_code || "");
                 setPhoneNumberLead(data.phone || "");
                 setDisplayValue(formatPhoneNumber(data.phone || ""));
@@ -689,20 +691,75 @@ const Form = () => {
                 body: JSON.stringify(payloadForSheets),
             });
 
-            const successMessage = orderIdInput && orderIdInput.trim()
-                ? `✅ The application has been saved and linked to the form. Lead ID: ${finalLeadId}`
-                : `✅ The application has been successfully saved. Lead ID: ${finalLeadId}`;
-
-            showSuccess(successMessage);
+            // const successMessage = orderIdInput && orderIdInput.trim()
+            //     ? `✅ The application has been saved and linked to the form. Lead ID: ${finalLeadId} Schedule string to copy :${formatTimeToAMPM(dataLead)} ${finalLeadId} ${dataLead}`
+            //     : `✅ The application has been successfully saved. Schedule string to copy : ${formatTimeToAMPM(dataLead)} ${finalLeadId} ${status} ${leadName} ${formatServices(services)} Address: ${addressLead} ZIP: ${zipCode} phone: ${phoneNumberLead} Total: ${total}$`;
+            payloadForMongo.order_id = finalLeadId;
+            showSchedule(payloadForMongo);
             setLoadingOrderTODB(false);
-
+            setTimeout(() => {
+                navigate('/welcomePage');
+            }, 9000);
         } catch (err) {
             console.error("❌ Общая ошибка в submitToGoogleSheets:", err);
             showError(`❌ Произошла ошибка: ${err.message || 'Неизвестная ошибка'}`);
             setLoadingOrderTODB(false);
         }
     };
+    function formatServices(servicesArray) {
+        if (!servicesArray || servicesArray.length === 0) {
+            return "No services";
+        }
 
+        return servicesArray.map(service => {
+            // Основная информация о сервисе
+            let serviceString = `Services by order ${service.value || service.workType} (${service.count}x)`;
+
+            // Добавляем diagonal если есть
+            if (service.diagonal) {
+                serviceString += ` - ${service.diagonal}"`;
+            }
+
+            // Добавляем тип крепления если есть
+            if (service.mountType) {
+                serviceString += ` - ${service.mountType}`;
+            }
+
+            // Добавляем материалы если есть
+            if (service.materials && service.materials.length > 0) {
+                const materials = service.materials.map(mat => `${mat.label} (${mat.count}x)`).join(', ');
+                serviceString += ` + Materials: ${materials}`;
+            }
+
+            // Добавляем дополнения если есть
+            if (service.addons && service.addons.length > 0) {
+                const addons = service.addons.map(addon => `${addon.label} (${addon.count}x)`).join(', ');
+                serviceString += ` + Addons: ${addons}`;
+            }
+
+            return serviceString;
+        }).join(' | ');
+    }
+
+    function formatTimeToAMPM(dateString) {
+        const date = new Date(dateString);
+
+        // Получаем часы и минуты
+        let hours = date.getHours();
+        const minutes = date.getMinutes();
+
+        // Определяем AM или PM
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+
+        // Конвертируем в 12-часовой формат
+        hours = hours % 12;
+        hours = hours ? hours : 12; // час '0' должен быть '12'
+
+        // Добавляем ведущий ноль к минутам если нужно
+        const minutesFormatted = minutes < 10 ? '0' + minutes : minutes;
+
+        return `${hours}:${minutesFormatted} ${ampm}`;
+    }
     const [mountCount, setMountCount] = useState(0);
     const servicesWithMountCount = services.map(s => ({
         ...s,
@@ -1027,6 +1084,8 @@ const Form = () => {
                     console.log(e.target.value)
                     setLeadName(e.target.value)
                 }}
+                autoComplete="aaaaa"
+                name="not-a-name"
             />
 
             <div className="mb-3 mt-3 d-flex flex-row">
@@ -1036,8 +1095,9 @@ const Form = () => {
                     placeholder="Address"
                     value={addressLead}
                     onChange={(e) => setAddressLead(e.target.value)}
+                    autoComplete="aaaaa"
                 />
-                <input className={"form-control"} type={"text"} placeholder={"ZIP code"} value={zipCode} onChange={(e) => setZipCode(e.target.value)} />
+                <input className={"form-control"} type={"text"} placeholder={"ZIP code"} value={zipCode} onChange={(e) => setZipCode(e.target.value)} autoComplete="aaaaa"/>
             </div>
             {callType && (
                 <div
@@ -1084,7 +1144,7 @@ const Form = () => {
                         onChange={handleChange}
                         inputMode="numeric"
                         pattern="[0-9]*"
-                        autoComplete="tel"
+                        autoComplete="aaaaa"
                     />
                 )}
 
@@ -1094,6 +1154,8 @@ const Form = () => {
                         type="text"
                         placeholder="ID number from message"
                         value={orderIdInput}
+                        autoComplete="aaaaa"
+
                         onChange={(e) => {
                             handleDoubleCheckingByID(e.target.value)
                             // ✅ обновляем orderIdInput
@@ -1165,6 +1227,7 @@ const Form = () => {
                             type="text"
                             readOnly={true}
                             value={`+1${phoneNumberLead}`}
+                            autoComplete="aaaaa"
                         />
                     </div>
 
@@ -1236,7 +1299,7 @@ const Form = () => {
                                     onChange={handleNewPhoneChange}
                                     inputMode="numeric"
                                     pattern="[0-9]*"
-                                    autoComplete="tel"
+                                    autoComplete="aaaaa"
                                 />
                                 <input
                                     className="form-control"
@@ -1244,6 +1307,7 @@ const Form = () => {
                                     placeholder="Подпись (например: Жена, Муж, Работа)"
                                     value={newPhoneLabel}
                                     onChange={(e) => setNewPhoneLabel(e.target.value)}
+                                    autoComplete="aaaaa"
                                 />
                             </div>
 
@@ -1282,6 +1346,7 @@ const Form = () => {
                             const time = prev.split("T")[1] || "12:00";
                             return `${e.target.value}T${time}`;
                         })}
+                        autoComplete="aaaaa"
                     />
                     <input
                         className="form-control"
@@ -1294,6 +1359,7 @@ const Form = () => {
                                 return `${date}T${rounded}`;
                             })
                         }
+                        autoComplete="aaaaa"
                     />
 
 
@@ -1310,6 +1376,7 @@ const Form = () => {
                     onFocus={() => setShowList(true)}
                     onBlur={() => setTimeout(() => setShowList(false), 200)}
                     onChange={(e) => setCity(e.target.value)}
+                    autoComplete="aaaaa"
                 />
                 {showList && (
                     <ul
@@ -1455,7 +1522,7 @@ const Form = () => {
                     {/* Общая сумма */}
                     <div className="text-end mt-3">
                         <h5>
-                            💰 Total:{`${total}$`}
+                            💰 Total:{`${totalLead?totalLead:total}$`}
                             {/*<b>*/}
                             {/*    {customTotal !== null*/}
                             {/*        ? `${customTotal} $`*/}
